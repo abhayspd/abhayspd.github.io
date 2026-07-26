@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Abhay Siripudi | Mechatronics</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Inter:wght@300;500;800&display=swap" rel="stylesheet">
 
     <style>
@@ -14,7 +16,6 @@
             overflow-x: hidden;
             background-color: #0f172a;
             font-family: 'Inter', sans-serif;
-            /* Hide the default scrollbar for a cleaner look */
             scrollbar-width: none; 
             -ms-overflow-style: none;
         }
@@ -29,20 +30,32 @@
             width: 100vw;
             height: 100vh;
             z-index: 1;
-            pointer-events: none; /* Let clicks pass through if needed */
+            pointer-events: none; /* Mouse events handled by raycaster */
         }
 
-        /* This container forces the page to be scrollable so we can drive the 3D animation */
         #scroll-container {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
-            height: 500vh; /* 5 screen heights of scrolling */
+            height: 400vh;
             z-index: 10;
         }
 
-        /* Fixed UI Overlays that fade in and out based on scroll */
+        /* The Audio Unlock Screen */
+        #audio-unlock {
+            position: fixed;
+            inset: 0;
+            background: #0f172a;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s;
+        }
+
+        /* Fixed UI Overlays for scrolling */
         .ui-layer {
             position: fixed;
             top: 0;
@@ -59,559 +72,690 @@
             transition: opacity 0.5s ease-out;
         }
 
-        .ui-layer.active {
+        .ui-layer.active { opacity: 1; }
+
+        /* Modal for when the arm grabs a project */
+        #project-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(8px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s;
+        }
+
+        #project-modal.visible {
             opacity: 1;
             pointer-events: auto;
         }
 
-        .blueprint-panel {
-            background: rgba(15, 23, 42, 0.7);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(56, 189, 248, 0.3);
-            border-radius: 12px;
-            padding: 2rem;
-            max-width: 500px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        .modal-content {
+            background: rgba(30, 41, 59, 0.9);
+            border: 1px solid #38bdf8;
+            box-shadow: 0 0 40px rgba(56, 189, 248, 0.2);
+            border-radius: 16px;
+            padding: 3rem;
+            max-width: 600px;
+            width: 90%;
+            color: white;
+            transform: scale(0.9);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        .blueprint-panel h2 {
-            font-family: 'JetBrains Mono', monospace;
-            color: #38bdf8;
-            border-bottom: 1px dashed #38bdf8;
-            padding-bottom: 0.5rem;
-            margin-bottom: 1rem;
+        #project-modal.visible .modal-content {
+            transform: scale(1);
         }
 
-        .blueprint-empty-box {
-            width: 100%;
-            height: 200px;
-            border: 2px dashed #475569;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #64748b;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.875rem;
+        /* Crosshair for interaction hint */
+        #cursor-hint {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 8px;
+            height: 8px;
+            background: rgba(255,255,255,0.5);
+            border-radius: 50%;
+            z-index: 30;
+            pointer-events: none;
+            transition: all 0.2s;
         }
-
-        #end-screen {
-            align-items: center;
-            text-align: center;
+        #cursor-hint.active {
+            transform: translate(-50%, -50%) scale(2);
+            background: #38bdf8;
+            box-shadow: 0 0 10px #38bdf8;
         }
     </style>
 </head>
 <body>
 
+    <div id="audio-unlock">
+        <h1 class="text-3xl font-bold text-white mb-6 font-mono">System Initialization</h1>
+        <button id="start-btn" class="px-8 py-4 bg-sky-600 hover:bg-sky-500 text-white rounded-lg font-bold shadow-[0_0_20px_rgba(2,132,199,0.5)] transition-all">
+            BOOT KINEMATICS ENGINE
+        </button>
+    </div>
+
     <canvas id="three-canvas"></canvas>
-
     <div id="scroll-container"></div>
+    <div id="cursor-hint"></div>
 
-    <!-- UI Overlay 0: Intro -->
+    <!-- Intro Text -->
     <div class="ui-layer active" id="ui-0">
         <div class="max-w-2xl">
             <div class="inline-block px-4 py-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 text-sky-400 font-mono text-sm mb-6">
-                > System.init()
+                > Abhay_Siripudi.exe
             </div>
             <h1 class="text-6xl md:text-8xl font-extrabold tracking-tighter text-white mb-4 drop-shadow-lg">
                 I Build <br><span class="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-blue-600">Moving Metal.</span>
             </h1>
             <p class="text-xl text-slate-400 font-light leading-relaxed font-mono">
-                Scroll down to explore the workspace.
+                Click on the blueprints on the desk to inspect systems. <br>Scroll to explore the workspace.
             </p>
         </div>
     </div>
 
-    <!-- UI Overlay 1: Blueprint 1 -->
-    <div class="ui-layer" id="ui-1" style="align-items: flex-end;">
-        <div class="blueprint-panel">
-            <h2 class="text-2xl font-bold">BLUEPRINT 01: [EMPTY]</h2>
-            <p class="text-slate-300 mb-4 text-sm">Awaiting project data ingestion. Systems standing by for mechanical assembly specifications.</p>
-            <div class="blueprint-empty-box">
-                [ AWAITING CAD DATA ]
-            </div>
-        </div>
+    <!-- UI Overlay End Screen -->
+    <div class="ui-layer" id="ui-3" style="align-items: center; text-align: center;">
+        <h2 class="text-5xl font-bold text-white mb-4">Systems Powered Down.</h2>
+        <p class="text-xl text-sky-400 font-mono">> Disconnecting...</p>
     </div>
 
-    <!-- UI Overlay 2: Blueprint 2 -->
-    <div class="ui-layer" id="ui-2" style="align-items: flex-start;">
-        <div class="blueprint-panel">
-            <h2 class="text-2xl font-bold">BLUEPRINT 02: [EMPTY]</h2>
-            <p class="text-slate-300 mb-4 text-sm">Awaiting project data ingestion. Sensor integration and kinematic models pending.</p>
-            <div class="blueprint-empty-box">
-                [ AWAITING CODE LOGIC ]
+    <!-- The Presentation Modal -->
+    <div id="project-modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-start mb-6">
+                <h2 id="modal-title" class="text-3xl font-bold text-sky-400 font-mono">BLUEPRINT DATA</h2>
+                <div class="px-3 py-1 bg-slate-800 rounded text-sm text-slate-400 font-mono border border-slate-700">CLASS: CLASSIFIED</div>
             </div>
+            <p id="modal-desc" class="text-slate-300 text-lg leading-relaxed mb-8">
+                Detailed mechanical and software specifications will be injected here. Currently awaiting data stream from main servers.
+            </p>
+            <div class="w-full h-48 border-2 border-dashed border-slate-600 rounded-lg flex items-center justify-center text-slate-500 font-mono mb-8">
+                [ VISUAL DATA CORRUPTED ]
+            </div>
+            <button id="close-modal-btn" class="w-full py-4 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-white font-bold tracking-wide transition-colors">
+                RETURN TO DESK
+            </button>
         </div>
-    </div>
-
-    <!-- UI Overlay 3: End Screen -->
-    <div class="ui-layer" id="ui-3" id="end-screen">
-        <h2 class="text-5xl font-bold text-white mb-4">Thanks for visiting.</h2>
-        <p class="text-xl text-sky-400 font-mono">> Abhay Siripudi_</p>
     </div>
 
 
     <script>
+        // --- 1. AUDIO ENGINE (Tone.js) ---
+        let servoSynth;
+        let isAudioReady = false;
+
+        document.getElementById('start-btn').addEventListener('click', async () => {
+            await Tone.start();
+            // A continuous FM Synth for mechanical motor whirring
+            servoSynth = new Tone.FMSynth({
+                harmonicity: 2,
+                modulationIndex: 5,
+                oscillator: { type: "square" },
+                modulation: { type: "sawtooth" },
+                envelope: { attack: 0.1, decay: 0.1, sustain: 1, release: 0.2 }
+            }).toDestination();
+            servoSynth.volume.value = -Infinity; // Start silent
+            servoSynth.triggerAttack(100);
+            
+            isAudioReady = true;
+            document.getElementById('audio-unlock').style.opacity = '0';
+            setTimeout(() => document.getElementById('audio-unlock').remove(), 500);
+        });
+
+        // Function to modulate sound based on movement speed
+        function updateServoSound(speed) {
+            if(!isAudioReady || !servoSynth) return;
+            if(speed > 0.001) {
+                // Map speed to volume (-30dB to -10dB) and pitch
+                servoSynth.volume.rampTo(-20 + (speed * 100), 0.1);
+                servoSynth.frequency.rampTo(100 + (speed * 2000), 0.1);
+            } else {
+                servoSynth.volume.rampTo(-Infinity, 0.2);
+            }
+        }
+
+
+        // --- 2. THREE.JS SETUP ---
         const canvas = document.getElementById('three-canvas');
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0f172a); // Dark slate background
-        scene.fog = new THREE.FogExp2(0x0f172a, 0.015);
+        scene.background = new THREE.Color(0x0f172a);
+        scene.fog = new THREE.FogExp2(0x0f172a, 0.012);
 
-        // Camera setup
         const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-        
-        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
         // Lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
         scene.add(ambientLight);
 
-        const spotLight = new THREE.SpotLight(0xffffff, 1.2);
-        spotLight.position.set(0, 80, 0);
-        spotLight.angle = Math.PI / 4;
-        spotLight.penumbra = 0.5;
+        const spotLight = new THREE.SpotLight(0xffffff, 1.5);
+        spotLight.position.set(0, 100, 50);
+        spotLight.angle = Math.PI / 3;
+        spotLight.penumbra = 0.8;
         spotLight.castShadow = true;
         spotLight.shadow.mapSize.width = 2048;
         spotLight.shadow.mapSize.height = 2048;
+        spotLight.shadow.bias = -0.0001;
         scene.add(spotLight);
 
-        const blueLight = new THREE.PointLight(0x38bdf8, 1, 100);
-        blueLight.position.set(-20, 20, -20);
-        scene.add(blueLight);
+        const deskLight = new THREE.PointLight(0x38bdf8, 0.5, 100);
+        deskLight.position.set(-20, 30, 20);
+        scene.add(deskLight);
 
+
+        // --- 3. ENVIRONMENT GENERATION ---
         
-        // 1. The Desk
-        const deskGeo = new THREE.PlaneGeometry(300, 300);
+        // Desk
+        const deskGeo = new THREE.PlaneGeometry(400, 400);
         const deskMat = new THREE.MeshStandardMaterial({ 
             color: 0x1e293b, 
-            roughness: 0.8, 
-            metalness: 0.1 
+            roughness: 0.7, 
+            metalness: 0.2 
         });
         const desk = new THREE.Mesh(deskGeo, deskMat);
         desk.rotation.x = -Math.PI / 2;
         desk.receiveShadow = true;
         scene.add(desk);
 
-        // 2. The Engraving Texture (Canvas API)
+        
+        // Engraving Canvas Texture
         function createEngravingTexture() {
             const ctxCanvas = document.createElement('canvas');
-            ctxCanvas.width = 2048;
-            ctxCanvas.height = 512;
+            ctxCanvas.width = 2048; ctxCanvas.height = 512;
             const ctx = ctxCanvas.getContext('2d');
-            
-            ctx.fillStyle = '#1e293b';
-            ctx.fillRect(0, 0, 2048, 512);
+            ctx.fillStyle = '#1e293b'; ctx.fillRect(0, 0, 2048, 512);
             
             ctx.font = '800 140px "JetBrains Mono", monospace';
-            ctx.fillStyle = '#0f172a'; // Darker for depth
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            
-            // "Carved" shadow effect
+            ctx.fillStyle = '#0f172a';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.shadowColor = 'rgba(0,0,0,0.8)';
-            ctx.shadowBlur = 6;
-            ctx.shadowOffsetX = 3;
-            ctx.shadowOffsetY = 3;
+            ctx.shadowBlur = 4; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 2;
             ctx.fillText('ABHAY SIRIPUDI', 1024, 200);
             
             ctx.font = '500 50px "JetBrains Mono", monospace';
-            ctx.shadowBlur = 2;
-            ctx.shadowOffsetX = 1;
-            ctx.shadowOffsetY = 1;
             ctx.fillText('MECHATRONICS ENGINEER', 1024, 320);
 
-            const texture = new THREE.CanvasTexture(ctxCanvas);
-            texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-            return texture;
+            return new THREE.CanvasTexture(ctxCanvas);
         }
 
-        const engravingGeo = new THREE.PlaneGeometry(60, 15);
+        const engravingGeo = new THREE.PlaneGeometry(80, 20);
         const engravingMat = new THREE.MeshStandardMaterial({
             map: createEngravingTexture(),
             roughness: 0.9,
             bumpMap: createEngravingTexture(),
-            bumpScale: 0.5
+            bumpScale: 0.8
         });
         const engraving = new THREE.Mesh(engravingGeo, engravingMat);
         engraving.rotation.x = -Math.PI / 2;
-        engraving.position.set(0, 0.05, 0); // At origin
+        engraving.position.set(0, 0.1, 0);
         scene.add(engraving);
 
-        // 3. 3D Blueprint Papers on the table
-        function createBlueprintTexture() {
+        // Blueprints (Interactable Objects)
+        function createBlueprintTexture(title) {
             const ctxCanvas = document.createElement('canvas');
-            ctxCanvas.width = 512;
-            ctxCanvas.height = 512;
+            ctxCanvas.width = 512; ctxCanvas.height = 512;
             const ctx = ctxCanvas.getContext('2d');
-            
-            ctx.fillStyle = '#1e3a8a'; // Blueprint blue
+            ctx.fillStyle = '#0284c7'; // Blueprint blue
             ctx.fillRect(0, 0, 512, 512);
-            
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-            ctx.lineWidth = 2;
-            // Draw grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)'; ctx.lineWidth = 2;
             for(let i=0; i<=512; i+=32) {
                 ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 512); ctx.stroke();
                 ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(512, i); ctx.stroke();
             }
-            // Draw border
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 4;
-            ctx.strokeRect(16, 16, 480, 480);
-
-            const texture = new THREE.CanvasTexture(ctxCanvas);
-            return texture;
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 6; ctx.strokeRect(20, 20, 472, 472);
+            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 40px "JetBrains Mono"';
+            ctx.fillText(title, 40, 80);
+            ctx.font = '24px "JetBrains Mono"';
+            ctx.fillText('[ CLICK TO INSPECT ]', 40, 140);
+            return new THREE.CanvasTexture(ctxCanvas);
         }
 
-        const bpMat = new THREE.MeshStandardMaterial({ map: createBlueprintTexture(), roughness: 0.5 });
-        const bpGeo = new THREE.PlaneGeometry(30, 20);
-        
-        // Blueprint 1 (Waypoint 1)
-        const blueprint1 = new THREE.Mesh(bpGeo, bpMat);
+        const blueprints = [];
+        const bpGeo = new THREE.PlaneGeometry(24, 24);
+
+        // BP1: South-East (+X, +Z)
+        const bp1Mat = new THREE.MeshStandardMaterial({ map: createBlueprintTexture('PROJECT: UAV DIFF'), side: THREE.DoubleSide });
+        const blueprint1 = new THREE.Mesh(bpGeo, bp1Mat);
         blueprint1.rotation.x = -Math.PI / 2;
-        blueprint1.rotation.z = Math.PI / 6;
-        blueprint1.position.set(-40, 0.1, -40);
+        blueprint1.rotation.z = Math.PI / 8;
+        blueprint1.position.set(35, 0.2, 35);
         blueprint1.receiveShadow = true;
+        blueprint1.userData = { isBlueprint: true, title: "UAV DIFFERENTIAL MECHANISM", desc: "Design and kinematics for a differential gear mechanism aimed at stabilizing fixed-wing UAVs via mechanical aileron actuation." };
         scene.add(blueprint1);
+        blueprints.push(blueprint1);
 
-        // Blueprint 2 (Waypoint 2)
-        const blueprint2 = new THREE.Mesh(bpGeo, bpMat);
+        // BP2: South-West (-X, +Z)
+        const bp2Mat = new THREE.MeshStandardMaterial({ map: createBlueprintTexture('PROJECT: SENSOR FUSION'), side: THREE.DoubleSide });
+        const blueprint2 = new THREE.Mesh(bpGeo, bp2Mat);
         blueprint2.rotation.x = -Math.PI / 2;
-        blueprint2.rotation.z = -Math.PI / 8;
-        blueprint2.position.set(40, 0.1, -80);
+        blueprint2.rotation.z = -Math.PI / 12;
+        blueprint2.position.set(-35, 0.2, 45);
         blueprint2.receiveShadow = true;
+        blueprint2.userData = { isBlueprint: true, title: "ESP32 SENSOR FUSION", desc: "C++ implementation of Kalman filters running on an ESP32 microcontroller to process raw IMU data for stabilizing robotic platforms." };
         scene.add(blueprint2);
+        blueprints.push(blueprint2);
 
-        
-        // Arduino Uno Low-Poly
-        const arduinoGroup = new THREE.Group();
-        // PCB
-        const pcb = new THREE.Mesh(new THREE.BoxGeometry(7, 0.2, 5), new THREE.MeshStandardMaterial({ color: 0x0369a1, roughness: 0.6 }));
-        pcb.position.y = 0.1;
-        pcb.castShadow = true;
-        arduinoGroup.add(pcb);
-        // USB Port
-        const usb = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1, 1.5), new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8 }));
-        usb.position.set(-2.75, 0.6, 1.75);
-        arduinoGroup.add(usb);
-        // Black pin headers
-        const headerMat = new THREE.MeshStandardMaterial({ color: 0x0f172a });
-        const header1 = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 0.4), headerMat);
-        header1.position.set(0, 0.35, -2.2);
-        arduinoGroup.add(header1);
-        const header2 = new THREE.Mesh(new THREE.BoxGeometry(3, 0.5, 0.4), headerMat);
-        header2.position.set(-1.5, 0.35, 2.2);
-        arduinoGroup.add(header2);
-        // MCU Chip
-        const mcu = new THREE.Mesh(new THREE.BoxGeometry(3, 0.3, 1), headerMat);
-        mcu.position.set(1, 0.35, -0.5);
-        arduinoGroup.add(mcu);
 
-        arduinoGroup.position.set(-15, 0, -10);
-        arduinoGroup.rotation.y = Math.PI / 4;
-        scene.add(arduinoGroup);
 
-        // Random IR Sensors
-        function createIRSensor(x, z, rot) {
-            const sensor = new THREE.Group();
-            const board = new THREE.Mesh(new THREE.BoxGeometry(2, 0.1, 1.5), new THREE.MeshStandardMaterial({ color: 0x0284c7 }));
-            board.position.y = 0.05;
-            sensor.add(board);
-            const ledMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transmission: 0.5, opacity: 1, transparent: true });
-            const led1 = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.8), ledMat);
-            led1.position.set(0.6, 0.4, 0.4);
-            sensor.add(led1);
-            const led2 = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.8), new THREE.MeshStandardMaterial({ color: 0x0f172a }));
-            led2.position.set(0.6, 0.4, -0.4);
-            sensor.add(led2);
-            sensor.position.set(x, 0, z);
-            sensor.rotation.y = rot;
-            scene.add(sensor);
-        }
-        createIRSensor(25, -20, Math.PI/3);
-        createIRSensor(-30, -70, -Math.PI/6);
+        // 1. High Poly Arduino (Blue PCB)
+        const arduino = new THREE.Group();
+        const pcb = new THREE.Mesh(new THREE.BoxGeometry(6, 0.3, 8), new THREE.MeshStandardMaterial({color: 0x0284c7, roughness: 0.6}));
+        pcb.position.y = 0.15; pcb.castShadow = true; arduino.add(pcb);
+        const usbPort = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.2, 1.5), new THREE.MeshStandardMaterial({color: 0xcbd5e1, metalness: 0.8}));
+        usbPort.position.set(-2.25, 0.75, 3.25); usbPort.castShadow = true; arduino.add(usbPort);
+        const mcu = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.2, 4), new THREE.MeshStandardMaterial({color: 0x0f172a}));
+        mcu.position.set(1, 0.3, 0); arduino.add(mcu);
+        const headerMat = new THREE.MeshStandardMaterial({color: 0x0f172a});
+        const h1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.8, 5), headerMat); h1.position.set(2.5, 0.5, 1); arduino.add(h1);
+        const h2 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.8, 4), headerMat); h2.position.set(-2.5, 0.5, -1); arduino.add(h2);
+        arduino.position.set(15, 0, -20); arduino.rotation.y = Math.PI / 6;
+        scene.add(arduino);
 
-        // Random Jumper Wires
-        const wireColors = [0xef4444, 0x22c55e, 0xeab308, 0x0f172a];
-        for(let i=0; i<25; i++) {
-            const startX = (Math.random() - 0.5) * 120;
-            const startZ = (Math.random() - 0.5) * 120 - 40;
-            const endX = startX + (Math.random() - 0.5) * 20;
-            const endZ = startZ + (Math.random() - 0.5) * 20;
-            
-            const curve = new THREE.QuadraticBezierCurve3(
-                new THREE.Vector3(startX, 0.1, startZ),
-                new THREE.Vector3((startX + endX)/2, Math.random() * 3 + 1, (startZ + endZ)/2),
-                new THREE.Vector3(endX, 0.1, endZ)
-            );
-            const tubeGeo = new THREE.TubeGeometry(curve, 20, 0.1, 8, false);
-            const tubeMat = new THREE.MeshStandardMaterial({ color: wireColors[Math.floor(Math.random() * wireColors.length)], roughness: 0.4 });
-            const wire = new THREE.Mesh(tubeGeo, tubeMat);
-            wire.castShadow = true;
-            scene.add(wire);
-        }
+        // 2. Multimeter
+        const multimeter = new THREE.Group();
+        const mmBody = new THREE.Mesh(new THREE.BoxGeometry(5, 1, 9), new THREE.MeshStandardMaterial({color: 0xeab308, roughness: 0.5}));
+        mmBody.position.y = 0.5; mmBody.castShadow = true; multimeter.add(mmBody);
+        const mmScreen = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.1, 2.5), new THREE.MeshStandardMaterial({color: 0x64748b}));
+        mmScreen.position.set(0, 1.05, -2.5); multimeter.add(mmScreen);
+        const mmDial = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.4, 32), new THREE.MeshStandardMaterial({color: 0x1e293b}));
+        mmDial.position.set(0, 1.1, 1); multimeter.add(mmDial);
+        multimeter.position.set(-20, 0, -15); multimeter.rotation.y = -Math.PI / 4;
+        scene.add(multimeter);
 
-        // Low-Poly Drill
+        // 3. High Poly Power Drill resting on table
         const drill = new THREE.Group();
-        const dBody = new THREE.Mesh(new THREE.BoxGeometry(4, 2, 8), new THREE.MeshStandardMaterial({ color: 0xeab308 }));
-        dBody.position.y = 1;
-        dBody.castShadow = true;
-        drill.add(dBody);
-        const dHandle = new THREE.Mesh(new THREE.BoxGeometry(2, 6, 2), new THREE.MeshStandardMaterial({ color: 0x1e293b }));
-        dHandle.position.set(0, -2, -2);
-        dHandle.rotation.x = Math.PI / 8;
-        dHandle.castShadow = true;
-        drill.add(dHandle);
-        const dChuck = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 2), new THREE.MeshStandardMaterial({ color: 0x94a3b8 }));
-        dChuck.rotation.x = Math.PI / 2;
-        dChuck.position.set(0, 1, 5);
-        dChuck.castShadow = true;
-        drill.add(dChuck);
+        const drillMat = new THREE.MeshStandardMaterial({color: 0xf59e0b, roughness: 0.4});
+        const darkMat = new THREE.MeshStandardMaterial({color: 0x1e293b, roughness: 0.8});
+        const silverMat = new THREE.MeshStandardMaterial({color: 0x94a3b8, metalness: 0.7, roughness: 0.3});
         
-        drill.position.set(15, 4.5, 10);
-        drill.rotation.y = -Math.PI / 6;
-        drill.rotation.x = Math.PI / 2; // Laying flat on table
+        // Drill Body lying flat
+        const dBody = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 8, 32), drillMat);
+        dBody.rotation.z = Math.PI / 2; dBody.position.set(0, 1.5, 0); dBody.castShadow = true; drill.add(dBody);
+        
+        // Chuck
+        const dChuck = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1.5, 2, 32), silverMat);
+        dChuck.rotation.z = -Math.PI / 2; dChuck.position.set(5, 1.5, 0); dChuck.castShadow = true; drill.add(dChuck);
+        
+        // Handle (Angled, lying flat on Z axis)
+        const dHandle = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 6, 32), darkMat);
+        dHandle.rotation.x = Math.PI / 2; dHandle.rotation.z = Math.PI / 8;
+        dHandle.position.set(-1, 1.5, 3); dHandle.castShadow = true; drill.add(dHandle);
+
+        // Battery Pack
+        const dBattery = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2, 4), darkMat);
+        dBattery.position.set(-2, 1.5, 6); dBattery.castShadow = true; drill.add(dBattery);
+
+        drill.position.set(-15, 0, 15);
+        drill.rotation.y = Math.PI / 3;
         scene.add(drill);
 
+        // Scattered Components (Screws/Bolts)
+        for(let i=0; i<15; i++) {
+            const screw = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.5, 6), silverMat);
+            screw.position.set((Math.random()-0.5)*80, 0.25, (Math.random()-0.5)*80);
+            screw.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+            screw.castShadow = true;
+            scene.add(screw);
+        }
 
-        
+
+
         const roverGroup = new THREE.Group();
         scene.add(roverGroup);
 
-        const redMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.6 });
-        const greyMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.4, metalness: 0.2 });
-        const servoMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 });
+        // Materials matching reference image
+        const armRedMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.4 });
+        const armGreyMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.5 });
+        const armBlackMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.7 });
 
-        // Rover Base Chassis
-        const chassis = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 3, 32), greyMat);
-        chassis.position.y = 2; // Lift off ground for wheels
-        chassis.castShadow = true;
-        roverGroup.add(chassis);
-
-        // Wheels
-        function createWheel(x, z) {
-            const wheel = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 1, 16), servoMat);
-            wheel.rotation.z = Math.PI / 2;
-            wheel.position.set(x, 1.5, z);
-            wheel.castShadow = true;
-            return wheel;
-        }
-        const w1 = createWheel(4, 2.5); const w2 = createWheel(-4, 2.5);
-        const w3 = createWheel(4, -2.5); const w4 = createWheel(-4, -2.5);
-        roverGroup.add(w1, w2, w3, w4);
-
-        // Turret (Rotates Y)
-        const turret = new THREE.Group();
-        turret.position.y = 3.5;
-        roverGroup.add(turret);
+        // 1. Rover Chassis (The Base Platform with wheels)
+        const chassis = new THREE.Mesh(new THREE.BoxGeometry(10, 2, 14), armBlackMat);
+        chassis.position.y = 2; chassis.castShadow = true; roverGroup.add(chassis);
         
-        const turretBase = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 1, 32), redMat);
-        turretBase.position.y = 0.5;
-        turretBase.castShadow = true;
-        turret.add(turretBase);
+        function addWheel(x, z) {
+            const w = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 1.5, 32), armBlackMat);
+            w.rotation.z = Math.PI / 2; w.position.set(x, 2, z); w.castShadow = true;
+            roverGroup.add(w);
+            return w;
+        }
+        const wheels = [addWheel(5.5, 5), addWheel(-5.5, 5), addWheel(5.5, -5), addWheel(-5.5, -5)];
 
-        // Lower Arm (Rotates X)
+        // 2. Arm Base (Grey Cylinder)
+        const base = new THREE.Group();
+        base.position.set(0, 3, 0);
+        roverGroup.add(base);
+        const baseMesh = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 3.5, 2, 64), armGreyMat);
+        baseMesh.position.y = 1; baseMesh.castShadow = true; base.add(baseMesh);
+
+        // 3. Turret (Rotates Y) - Red Swivel
+        const turret = new THREE.Group();
+        turret.position.y = 2; base.add(turret);
+        const turretMesh = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 3, 64), armRedMat);
+        turretMesh.position.y = 1.5; turretMesh.castShadow = true; turret.add(turretMesh);
+
+        // 4. Lower Arm (Rotates X)
         const lowerArm = new THREE.Group();
-        lowerArm.position.y = 1;
-        turret.add(lowerArm);
+        lowerArm.position.y = 3; turret.add(lowerArm);
+        
+        // Joint Sphere
+        const joint1 = new THREE.Mesh(new THREE.SphereGeometry(2, 32, 32), armRedMat);
+        joint1.castShadow = true; lowerArm.add(joint1);
+        // Servo Box
+        const servo1 = new THREE.Mesh(new THREE.BoxGeometry(2.5, 3, 4), armBlackMat);
+        servo1.position.x = 2.5; servo1.castShadow = true; lowerArm.add(servo1);
+        
+        // The Link (Pill shape simulated with cylinder)
+        const lowerLink = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 12, 32), armRedMat);
+        lowerLink.position.y = 6; lowerLink.castShadow = true; lowerArm.add(lowerLink);
 
-        const lowerArmMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 8, 2), redMat);
-        lowerArmMesh.position.y = 4; // Shift up so origin is at joint
-        lowerArmMesh.castShadow = true;
-        lowerArm.add(lowerArmMesh);
-
-        // Lower Arm Servo
-        const servo1 = new THREE.Mesh(new THREE.BoxGeometry(3, 3, 3), servoMat);
-        servo1.position.set(1.5, 0, 0);
-        lowerArm.add(servo1);
-
-        // Upper Arm (Rotates X)
+        // 5. Upper Arm (Rotates X)
         const upperArm = new THREE.Group();
-        upperArm.position.y = 8; // At top of lower arm
-        lowerArm.add(upperArm);
+        upperArm.position.y = 12; lowerArm.add(upperArm);
+        
+        const joint2 = new THREE.Mesh(new THREE.SphereGeometry(1.5, 32, 32), armRedMat);
+        joint2.castShadow = true; upperArm.add(joint2);
+        const servo2 = new THREE.Mesh(new THREE.BoxGeometry(2, 2.5, 3), armBlackMat);
+        servo2.position.x = -2; servo2.castShadow = true; upperArm.add(servo2);
 
-        const upperArmMesh = new THREE.Mesh(new THREE.BoxGeometry(1.5, 7, 1.5), redMat);
-        upperArmMesh.position.y = 3.5;
-        upperArmMesh.castShadow = true;
-        upperArm.add(upperArmMesh);
+        const upperLink = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 10, 32), armRedMat);
+        upperLink.position.y = 5; upperLink.castShadow = true; upperArm.add(upperLink);
 
-        // Upper Arm Servo
-        const servo2 = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.5, 2.5), servoMat);
-        servo2.position.set(-1.5, 0, 0);
-        upperArm.add(servo2);
-
-        // Gripper Assembly (Static for now, looks like the photo)
+        // 6. Gripper Base & Claws
         const gripper = new THREE.Group();
-        gripper.position.y = 7;
-        upperArm.add(gripper);
+        gripper.position.y = 10; upperArm.add(gripper);
+        
+        const gripperServo = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2, 2.5), new THREE.MeshStandardMaterial({color: 0x0284c7})); // Blue servo head from reference
+        gripperServo.castShadow = true; gripper.add(gripperServo);
 
-        const gripperBase = new THREE.Mesh(new THREE.BoxGeometry(3, 2, 2), new THREE.MeshStandardMaterial({color: 0x0284c7})); // Blue servo part
-        gripper.add(gripperBase);
-
-        const finger1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 4, 1), greyMat);
-        finger1.position.set(1, 2, 0);
-        finger1.rotation.z = Math.PI / 8;
-        gripper.add(finger1);
-
-        const finger2 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 4, 1), greyMat);
-        finger2.position.set(-1, 2, 0);
-        finger2.rotation.z = -Math.PI / 8;
-        gripper.add(finger2);
+        const clawMat = armGreyMat;
+        const clawLeft = new THREE.Mesh(new THREE.BoxGeometry(0.5, 5, 1.5), clawMat);
+        clawLeft.position.set(1.2, 2.5, 0); clawLeft.rotation.z = Math.PI / 12; clawLeft.castShadow = true; gripper.add(clawLeft);
+        
+        const clawRight = new THREE.Mesh(new THREE.BoxGeometry(0.5, 5, 1.5), clawMat);
+        clawRight.position.set(-1.2, 2.5, 0); clawRight.rotation.z = -Math.PI / 12; clawRight.castShadow = true; gripper.add(clawRight);
 
         // Initial Pose
-        lowerArm.rotation.x = Math.PI / 6;
+        lowerArm.rotation.x = Math.PI / 4;
         upperArm.rotation.x = Math.PI / 2;
-        roverGroup.position.set(20, 0, 10); // Start off to the side
+        gripper.rotation.x = -Math.PI / 4;
+        roverGroup.position.set(0, 0, -10);
 
 
+
+        let appState = 'SCROLL'; // States: SCROLL, DRIVE_TO_GRAB, GRABBING, VIEWING, RETURNING
+        let targetBP = null;
         
-        let scrollProgress = 0;
+        // Store original transform to put it back perfectly
+        let bpOriginalWorldPos = new THREE.Vector3();
+        let bpOriginalWorldQuat = new THREE.Quaternion();
 
-        window.addEventListener('scroll', () => {
-            const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-            scrollProgress = window.scrollY / maxScroll;
-            updateUI(scrollProgress);
+        // Raycaster for clicking
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        const cursorHint = document.getElementById('cursor-hint');
+
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            cursorHint.style.left = e.clientX + 'px';
+            cursorHint.style.top = e.clientY + 'px';
+
+            if(appState === 'SCROLL') {
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(blueprints);
+                if(intersects.length > 0) {
+                    cursorHint.classList.add('active');
+                    document.body.style.cursor = 'pointer';
+                } else {
+                    cursorHint.classList.remove('active');
+                    document.body.style.cursor = 'default';
+                }
+            }
         });
 
-        // Toggle HTML UI based on scroll segments
-        function updateUI(p) {
-            document.querySelectorAll('.ui-layer').forEach(el => el.classList.remove('active'));
-            if (p < 0.15) document.getElementById('ui-0').classList.add('active');
-            else if (p >= 0.15 && p < 0.45) document.getElementById('ui-1').classList.add('active');
-            else if (p >= 0.45 && p < 0.8) document.getElementById('ui-2').classList.add('active');
-            else if (p >= 0.8) document.getElementById('ui-3').classList.add('active');
-        }
+        window.addEventListener('click', () => {
+            if(appState !== 'SCROLL') return;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(blueprints);
+            
+            if(intersects.length > 0) {
+                targetBP = intersects[0].object;
+                
+                // Save world state
+                targetBP.getWorldPosition(bpOriginalWorldPos);
+                targetBP.getWorldQuaternion(bpOriginalWorldQuat);
+                
+                // Populate Modal Data
+                document.getElementById('modal-title').innerText = targetBP.userData.title;
+                document.getElementById('modal-desc').innerText = targetBP.userData.desc;
 
-        // Define our 3D cinematic waypoints
-        const waypoints = [
-            { // 0: Intro (Looking at Engraving)
-                camPos: new THREE.Vector3(0, 40, 30),
-                camLook: new THREE.Vector3(0, 0, 0),
-                roverTarget: new THREE.Vector3(20, 0, 10)
-            },
-            { // 1: Blueprint 1
-                camPos: new THREE.Vector3(-40, 35, -15),
-                camLook: new THREE.Vector3(-40, 0, -40),
-                roverTarget: new THREE.Vector3(-20, 0, -35) // Rover parked near blueprint 1
-            },
-            { // 2: Blueprint 2
-                camPos: new THREE.Vector3(40, 35, -55),
-                camLook: new THREE.Vector3(40, 0, -80),
-                roverTarget: new THREE.Vector3(20, 0, -75) // Rover parked near blueprint 2
-            },
-            { // 3: End Screen (Zoomed out side view)
-                camPos: new THREE.Vector3(80, 50, -20),
-                camLook: new THREE.Vector3(0, 0, -40),
-                roverTarget: new THREE.Vector3(40, 0, -40) // Rover centered looking at camera
+                // Lock scroll & switch state
+                document.body.style.overflow = 'hidden';
+                cursorHint.classList.remove('active');
+                appState = 'DRIVE_TO_GRAB';
             }
+        });
+
+        document.getElementById('close-modal-btn').addEventListener('click', () => {
+            document.getElementById('project-modal').classList.remove('visible');
+            appState = 'RETURNING';
+        });
+
+        // Camera Scroll Waypoints
+        // 0: Intro, 1: South-East (BP1), 2: South-West (BP2), 3: End
+        const waypoints = [
+            { cam: new THREE.Vector3(0, 40, 40), look: new THREE.Vector3(0,0,0), rover: new THREE.Vector3(0, 0, -15) },
+            { cam: new THREE.Vector3(45, 35, 60), look: new THREE.Vector3(30,0,30), rover: new THREE.Vector3(15, 0, 15) },
+            { cam: new THREE.Vector3(-45, 35, 60), look: new THREE.Vector3(-30,0,30), rover: new THREE.Vector3(-15, 0, 15) },
+            { cam: new THREE.Vector3(80, 25, 60), look: new THREE.Vector3(0,0,20), rover: new THREE.Vector3(0, 0, 30) }
         ];
 
-        // Helper to get current interpolated state
-        function getInterpolatedState(p) {
-            // Map 0-1 to our 4 waypoints
+        let scrollProgress = 0;
+        window.addEventListener('scroll', () => {
+            if(appState === 'SCROLL') {
+                const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+                scrollProgress = Math.max(0, Math.min(1, window.scrollY / maxScroll));
+                
+                // HTML Overlay Visibility
+                document.querySelectorAll('.ui-layer').forEach(el => el.classList.remove('active'));
+                if(scrollProgress < 0.2) document.getElementById('ui-0').classList.add('active');
+                if(scrollProgress > 0.9) document.getElementById('ui-3').classList.add('active');
+            }
+        });
+
+        function getScrollState(p) {
             const scaledP = p * 3; 
-            const index = Math.floor(scaledP);
-            const t = scaledP - index;
-
-            if (index >= 3) return waypoints[3]; // End clamping
-
-            const wp1 = waypoints[index];
-            const wp2 = waypoints[index + 1];
-
-            // Smoothstep interpolation for buttery movement
+            const idx = Math.floor(scaledP);
+            const t = scaledP - idx;
+            if (idx >= 3) return waypoints[3];
             const smoothT = t * t * (3 - 2 * t);
-
             return {
-                camPos: new THREE.Vector3().copy(wp1.camPos).lerp(wp2.camPos, smoothT),
-                camLook: new THREE.Vector3().copy(wp1.camLook).lerp(wp2.camLook, smoothT),
-                roverTarget: new THREE.Vector3().copy(wp1.roverTarget).lerp(wp2.roverTarget, smoothT)
+                cam: new THREE.Vector3().copy(waypoints[idx].cam).lerp(waypoints[idx+1].cam, smoothT),
+                look: new THREE.Vector3().copy(waypoints[idx].look).lerp(waypoints[idx+1].look, smoothT),
+                rover: new THREE.Vector3().copy(waypoints[idx].rover).lerp(waypoints[idx+1].rover, smoothT)
             };
         }
 
 
-        
+
         const clock = new THREE.Clock();
+        const currentCamPos = waypoints[0].cam.clone();
+        const currentCamLook = waypoints[0].look.clone();
         
-        // Current state variables (lerped towards target state)
-        const currentCamPos = waypoints[0].camPos.clone();
-        const currentCamLook = waypoints[0].camLook.clone();
-        const currentRoverPos = waypoints[0].roverTarget.clone();
+        // Target Variables for Grab Logic
+        const grabRoverPos = new THREE.Vector3();
+        let animationTimer = 0;
+
+        function lerpAngle(a, b, t) {
+            let diff = b - a;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            return a + diff * t;
+        }
 
         function animate() {
             requestAnimationFrame(animate);
+            const delta = Math.min(clock.getDelta(), 0.1); // Cap delta to prevent huge jumps
             const time = clock.getElapsedTime();
-            const delta = clock.getDelta();
 
-            // 1. Get targets from scroll position
-            const state = getInterpolatedState(scrollProgress);
+            let targetRoverPos, targetRoverRot, targetTurret, targetLower, targetUpper, targetGripperX;
+            let totalMovementSpeed = 0; // For Sound
 
-            // 2. Smoothly move camera
-            currentCamPos.lerp(state.camPos, 0.05);
-            currentCamLook.lerp(state.camLook, 0.05);
+            if (appState === 'SCROLL') {
+                // Normal Scroll Behavior
+                const state = getScrollState(scrollProgress);
+                currentCamPos.lerp(state.cam, 0.05);
+                currentCamLook.lerp(state.look, 0.05);
+                
+                targetRoverPos = state.rover;
+                
+                // Rover faces movement direction
+                const dir = new THREE.Vector3().subVectors(targetRoverPos, roverGroup.position);
+                if(dir.lengthSq() > 0.1) targetRoverRot = Math.atan2(dir.x, dir.z);
+                else targetRoverRot = roverGroup.rotation.y; // Stay put
+
+                targetTurret = 0;
+                targetLower = Math.PI / 4 + Math.sin(time*2)*0.05; // Idle breathing
+                targetUpper = Math.PI / 2 + Math.cos(time*2)*0.05;
+                targetGripperX = -Math.PI / 4;
+
+                // Wave Animation at the very end
+                if(scrollProgress > 0.95) {
+                    const dirToCam = new THREE.Vector3().subVectors(camera.position, roverGroup.position).normalize();
+                    targetRoverRot = Math.atan2(dirToCam.x, dirToCam.z);
+                    targetLower = 0; // Stand tall
+                    targetUpper = Math.PI/2 + Math.sin(time * 6) * 0.6; // Wave rapidly
+                }
+
+            } else if (appState === 'DRIVE_TO_GRAB') {
+                // Drive to 10 units "South" (-Z relative to blueprint rotation, but for simplicity, just +Z in world)
+                grabRoverPos.copy(bpOriginalWorldPos).add(new THREE.Vector3(0, 0, 14));
+                targetRoverPos = grabRoverPos;
+                
+                const dir = new THREE.Vector3().subVectors(targetRoverPos, roverGroup.position);
+                if(dir.lengthSq() > 0.1) {
+                    targetRoverRot = Math.atan2(dir.x, dir.z);
+                } else {
+                    // Reached destination, face blueprint
+                    targetRoverRot = Math.atan2(bpOriginalWorldPos.x - roverGroup.position.x, bpOriginalWorldPos.z - roverGroup.position.z);
+                    let angleDiff = Math.abs(lerpAngle(roverGroup.rotation.y, targetRoverRot, 1) - targetRoverRot);
+                    if(angleDiff < 0.05) {
+                        appState = 'GRABBING';
+                        animationTimer = 0;
+                    }
+                }
+                targetTurret = 0; targetLower = Math.PI / 4; targetUpper = Math.PI / 2; targetGripperX = -Math.PI / 4;
+
+            } else if (appState === 'GRABBING') {
+                targetRoverPos = grabRoverPos;
+                targetRoverRot = Math.atan2(bpOriginalWorldPos.x - roverGroup.position.x, bpOriginalWorldPos.z - roverGroup.position.z);
+                
+                // Kinematics down to table
+                targetTurret = 0;
+                targetLower = Math.PI / 2.2; 
+                targetUpper = 0.2; 
+                targetGripperX = -Math.PI / 2; // Point down
+
+                animationTimer += delta;
+                if(animationTimer > 1.5) {
+                    // Attach Blueprint to Gripper
+                    gripper.attach(targetBP);
+                    appState = 'PRESENTING';
+                    animationTimer = 0;
+                }
+
+            } else if (appState === 'PRESENTING') {
+                targetRoverPos = grabRoverPos;
+                // Turn rover slightly to camera
+                const dirToCam = new THREE.Vector3().subVectors(camera.position, roverGroup.position).normalize();
+                targetRoverRot = Math.atan2(dirToCam.x, dirToCam.z);
+                
+                // Arm lifts up to screen
+                targetTurret = 0;
+                targetLower = 0.2;
+                targetUpper = Math.PI / 1.5;
+                targetGripperX = -Math.PI / 4;
+
+                // Smoothly pull blueprint perfectly into the claws
+                targetBP.position.lerp(new THREE.Vector3(0, 3, 0), 0.1);
+                targetBP.quaternion.slerp(new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI/2, 0, 0)), 0.1);
+
+                animationTimer += delta;
+                if(animationTimer > 2.0) {
+                    document.getElementById('project-modal').classList.add('visible');
+                    appState = 'VIEWING';
+                }
+
+            } else if (appState === 'VIEWING') {
+                // Static hold
+                targetRoverPos = grabRoverPos;
+                targetRoverRot = roverGroup.rotation.y;
+                targetTurret = 0; targetLower = 0.2; targetUpper = Math.PI / 1.5; targetGripperX = -Math.PI / 4;
+
+            } else if (appState === 'RETURNING') {
+                targetRoverPos = grabRoverPos;
+                targetRoverRot = Math.atan2(bpOriginalWorldPos.x - roverGroup.position.x, bpOriginalWorldPos.z - roverGroup.position.z);
+                
+                // Arm goes back down
+                targetTurret = 0;
+                targetLower = Math.PI / 2.2; 
+                targetUpper = 0.2; 
+                targetGripperX = -Math.PI / 2;
+
+                // Blueprint orientates back to flat
+                targetBP.quaternion.slerp(new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI/2, 0, 0)), 0.1);
+
+                animationTimer += delta;
+                if(animationTimer > 1.5) {
+                    // Detach and put back in scene exactly where it was
+                    scene.attach(targetBP);
+                    targetBP.position.copy(bpOriginalWorldPos);
+                    targetBP.quaternion.copy(bpOriginalWorldQuat);
+                    
+                    document.body.style.overflow = 'auto'; // Unlock scroll
+                    appState = 'SCROLL';
+                }
+            }
+
+
+            // Apply Smoothing to Rover & Arm joints
+            const dist = roverGroup.position.distanceTo(targetRoverPos);
+            if(dist > 0.05) {
+                roverGroup.position.lerp(targetRoverPos, 0.08);
+                totalMovementSpeed += dist * 0.1;
+                // Spin wheels
+                wheels.forEach(w => w.rotation.x += dist * 0.1);
+            }
+
+            const rotSpeed = 0.08;
+            roverGroup.rotation.y = lerpAngle(roverGroup.rotation.y, targetRoverRot, rotSpeed);
+            turret.rotation.y = lerpAngle(turret.rotation.y, targetTurret, rotSpeed);
+            lowerArm.rotation.x = lerpAngle(lowerArm.rotation.x, targetLower, rotSpeed);
+            upperArm.rotation.x = lerpAngle(upperArm.rotation.x, targetUpper, rotSpeed);
+            gripper.rotation.x = lerpAngle(gripper.rotation.x, targetGripperX, rotSpeed);
+
+            // Add joint delta to sound
+            totalMovementSpeed += Math.abs(targetLower - lowerArm.rotation.x) + Math.abs(targetUpper - upperArm.rotation.x);
+            updateServoSound(totalMovementSpeed);
+
+            // Apply Camera Updates
             camera.position.copy(currentCamPos);
             camera.lookAt(currentCamLook);
-
-            // 3. Rover Driving Logic
-            const dist = currentRoverPos.distanceTo(state.roverTarget);
-            if (dist > 0.1) {
-                // Move towards target
-                const moveSpeed = 0.08;
-                currentRoverPos.lerp(state.roverTarget, moveSpeed);
-                roverGroup.position.copy(currentRoverPos);
-
-                // Rotate to face direction of travel
-                const direction = new THREE.Vector3().subVectors(state.roverTarget, currentRoverPos).normalize();
-                const targetRotation = Math.atan2(direction.x, direction.z);
-                
-                // Smooth rotation mapping
-                let diff = targetRotation - roverGroup.rotation.y;
-                // Normalize angle
-                while (diff < -Math.PI) diff += Math.PI * 2;
-                while (diff > Math.PI) diff -= Math.PI * 2;
-                roverGroup.rotation.y += diff * 0.1;
-
-                // Spin wheels based on movement
-                const wheelSpin = dist * 0.1;
-                w1.rotation.x += wheelSpin;
-                w2.rotation.x += wheelSpin;
-                w3.rotation.x += wheelSpin;
-                w4.rotation.x += wheelSpin;
-            }
-
-            // 4. Arm Animations
-            if (scrollProgress > 0.95) {
-                // Waving Animation at the end
-                // Rover turns to face camera
-                const directionToCam = new THREE.Vector3().subVectors(camera.position, roverGroup.position).normalize();
-                const targetYRot = Math.atan2(directionToCam.x, directionToCam.z);
-                
-                let diff = targetYRot - roverGroup.rotation.y;
-                while (diff < -Math.PI) diff += Math.PI * 2;
-                while (diff > Math.PI) diff -= Math.PI * 2;
-                roverGroup.rotation.y += diff * 0.05;
-
-                // Arm joints wave
-                turret.rotation.y = Math.sin(time * 5) * 0.5;
-                lowerArm.rotation.x = THREE.MathUtils.lerp(lowerArm.rotation.x, 0, 0.1);
-                upperArm.rotation.x = THREE.MathUtils.lerp(upperArm.rotation.x, Math.PI / 2 + Math.sin(time * 5) * 0.5, 0.1);
-
-            } else {
-                // Idle / Driving Posture
-                // Turret faces forward relative to chassis
-                turret.rotation.y = THREE.MathUtils.lerp(turret.rotation.y, 0, 0.05);
-                // Slight breathing/bouncing in arms
-                lowerArm.rotation.x = THREE.MathUtils.lerp(lowerArm.rotation.x, Math.PI / 6 + Math.sin(time * 2) * 0.05, 0.05);
-                upperArm.rotation.x = THREE.MathUtils.lerp(upperArm.rotation.x, Math.PI / 2 + Math.cos(time * 2) * 0.05, 0.05);
-            }
 
             renderer.render(scene, camera);
         }
 
-        // Handle Resize
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
