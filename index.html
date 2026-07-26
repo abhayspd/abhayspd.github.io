@@ -1,13 +1,11 @@
 <!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Abhinav | Mechatronics Engineer</title>
-    
+    <title>Abhay Siripudi | Mechatronics</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Inter:wght@300;500;800&display=swap" rel="stylesheet">
 
     <style>
@@ -16,22 +14,12 @@
             overflow-x: hidden;
             background-color: #0f172a;
             font-family: 'Inter', sans-serif;
+            /* Hide the default scrollbar for a cleaner look */
+            scrollbar-width: none; 
+            -ms-overflow-style: none;
         }
-        /* Custom scrollbar to look like a mechanical track */
-        ::-webkit-scrollbar {
-            width: 12px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #1e293b;
-            border-left: 1px solid #334155;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #475569;
-            border-radius: 0;
-            border: 2px solid #1e293b;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #cbd5e1;
+        body::-webkit-scrollbar {
+            display: none; 
         }
 
         #three-canvas {
@@ -40,334 +28,167 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            z-index: -1;
-            pointer-events: none; /* Let clicks pass through to the 3D scene below */
+            z-index: 1;
+            pointer-events: none; /* Let clicks pass through if needed */
         }
 
-        .glass-panel {
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        /* This container forces the page to be scrollable so we can drive the 3D animation */
+        #scroll-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 500vh; /* 5 screen heights of scrolling */
+            z-index: 10;
         }
 
-        /* SVG Robotic Arm Styling */
-        #robotic-arm {
+        /* Fixed UI Overlays that fade in and out based on scroll */
+        .ui-layer {
             position: fixed;
-            bottom: 0;
-            right: 10%;
-            width: 400px;
-            height: 400px;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
-            z-index: 50;
-            overflow: visible;
-        }
-        .arm-metal {
-            fill: #334155;
-            stroke: #0f172a;
-            stroke-width: 2;
-        }
-        .arm-joint {
-            fill: #e2e8f0;
-            stroke: #0ea5e9;
-            stroke-width: 3;
-        }
-        .arm-accent {
-            fill: #0ea5e9;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 10%;
+            opacity: 0;
+            transition: opacity 0.5s ease-out;
         }
 
-        /* Project Card Expansion Styles */
-        .project-card {
-            transition: all 0.3s ease-out;
-            transform-origin: top left;
+        .ui-layer.active {
+            opacity: 1;
+            pointer-events: auto;
         }
-        .project-card.expanded {
-            width: 100% !important;
-            height: 400px !important;
-            z-index: 40;
-            border-color: #0ea5e9;
-            background: rgba(15, 23, 42, 0.95);
+
+        .blueprint-panel {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 500px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+
+        .blueprint-panel h2 {
+            font-family: 'JetBrains Mono', monospace;
+            color: #38bdf8;
+            border-bottom: 1px dashed #38bdf8;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .blueprint-empty-box {
+            width: 100%;
+            height: 200px;
+            border: 2px dashed #475569;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+        }
+
+        #end-screen {
+            align-items: center;
+            text-align: center;
         }
     </style>
 </head>
-<body class="text-slate-300 antialiased selection:bg-sky-500 selection:text-white">
+<body>
 
     <canvas id="three-canvas"></canvas>
 
-    <svg id="robotic-arm" viewBox="-200 -200 400 400">
-        <defs>
-            <filter id="glow">
-                <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
-                <feMerge>
-                    <feMergeNode in="coloredBlur"/>
-                    <feMergeNode in="SourceGraphic"/>
-                </feMerge>
-            </filter>
-        </defs>
-        
-        <!-- Base of the arm -->
-        <path d="M -40 200 L 40 200 L 30 160 L -30 160 Z" class="arm-metal"/>
-        <circle cx="0" cy="160" r="25" class="arm-metal"/>
-        <circle cx="0" cy="160" r="10" class="arm-joint"/>
+    <div id="scroll-container"></div>
 
-        <!-- The grouping for Joint 1 and Arm 1 -->
-        <g id="joint1" transform="translate(0, 160)">
-            <rect x="-15" y="-120" width="30" height="120" rx="10" class="arm-metal"/>
-            <rect x="-5" y="-100" width="10" height="80" class="arm-accent"/>
-            
-            <!-- The grouping for Joint 2 and Arm 2 -->
-            <g id="joint2" transform="translate(0, -120)">
-                <circle cx="0" cy="0" r="20" class="arm-metal"/>
-                <circle cx="0" cy="0" r="8" class="arm-joint"/>
-                <rect x="-12" y="-100" width="24" height="100" rx="8" class="arm-metal"/>
-                
-                <!-- The Grabber/Claw -->
-                <g id="claw" transform="translate(0, -100)">
-                    <circle cx="0" cy="0" r="15" class="arm-metal"/>
-                    <circle cx="0" cy="0" r="5" class="arm-accent" filter="url(#glow)"/>
-                    <path id="claw-left" d="M -10 0 C -25 -20 -25 -40 -10 -50 L -5 -40 C -15 -30 -15 -10 -5 0 Z" class="arm-metal"/>
-                    <path id="claw-right" d="M 10 0 C 25 -20 25 -40 10 -50 L 5 -40 C 15 -30 15 -10 5 0 Z" class="arm-metal"/>
-                    <!-- Invisible target point for IK math -->
-                    <circle id="ik-target-point" cx="0" cy="-50" r="2" fill="none"/>
-                </g>
-            </g>
-        </g>
-    </svg>
-
-    <main class="relative z-10 w-full max-w-6xl mx-auto px-6 pt-32 pb-64">
-        
-        <!-- Hero Section -->
-        <header class="mb-48" id="hero">
-            <div class="inline-block px-4 py-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 text-sky-400 font-mono text-sm mb-6 shadow-[0_0_15px_rgba(14,165,233,0.2)]">
+    <!-- UI Overlay 0: Intro -->
+    <div class="ui-layer active" id="ui-0">
+        <div class="max-w-2xl">
+            <div class="inline-block px-4 py-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 text-sky-400 font-mono text-sm mb-6">
                 > System.init()
             </div>
-            <h1 class="text-6xl md:text-8xl font-extrabold tracking-tighter text-white mb-6 drop-shadow-lg">
+            <h1 class="text-6xl md:text-8xl font-extrabold tracking-tighter text-white mb-4 drop-shadow-lg">
                 I Build <br><span class="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-blue-600">Moving Metal.</span>
             </h1>
-            <p class="text-xl text-slate-400 max-w-2xl font-light leading-relaxed font-mono">
-                Mechatronics & Aerospace Engineering. <br>
-                Bridging the gap between raw hardware and C++ algorithms.
+            <p class="text-xl text-slate-400 font-light leading-relaxed font-mono">
+                Scroll down to explore the workspace.
             </p>
-        </header>
+        </div>
+    </div>
 
-        <!-- Projects Section -->
-        <section id="projects" class="relative">
-            <h2 class="text-3xl font-bold text-white mb-12 flex items-center font-mono">
-                <span class="w-8 h-1 bg-sky-500 mr-4"></span> Active Prototypes
-            </h2>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 relative" id="project-grid">
-                
-                <!-- Project 1 -->
-                <div class="glass-card project-card rounded-xl p-8 relative overflow-hidden group cursor-pointer w-full h-64 border border-slate-700 hover:border-sky-500/50" onclick="expandProject(this, event)">
-                    <div class="absolute top-0 right-0 bg-sky-500/20 text-sky-400 font-mono text-xs px-3 py-1 rounded-bl-lg">Patent Pending</div>
-                    <h3 class="text-2xl font-bold text-white mb-2">UAV Differential Gearbox</h3>
-                    <div class="flex gap-2 mb-4 font-mono text-xs text-sky-300">
-                        <span class="bg-slate-800 px-2 py-1 rounded">SolidWorks</span>
-                        <span class="bg-slate-800 px-2 py-1 rounded">C++</span>
-                        <span class="bg-slate-800 px-2 py-1 rounded">ESP32</span>
-                    </div>
-                    <p class="text-slate-400 line-clamp-2 transition-all duration-300 project-desc">
-                        A purely mechanical differential gearbox to replace electronic IMU roll-stabilization. A flexible wing root transmits aerodynamic bending forces to a central bevel gear, actuating ailerons with zero latency.
-                    </p>
-                    <div class="expand-btn absolute bottom-6 right-6 w-10 h-10 bg-slate-800 border border-slate-600 rounded-full flex items-center justify-center group-hover:bg-sky-500 group-hover:border-sky-400 transition-colors">
-                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
-                    </div>
-                </div>
-
-                <!-- Project 2 -->
-                <div class="glass-card project-card rounded-xl p-8 relative overflow-hidden group cursor-pointer w-full h-64 border border-slate-700 hover:border-sky-500/50" onclick="expandProject(this, event)">
-                    <h3 class="text-2xl font-bold text-white mb-2">6-DOF Autonomous Arm</h3>
-                    <div class="flex gap-2 mb-4 font-mono text-xs text-sky-300">
-                        <span class="bg-slate-800 px-2 py-1 rounded">Python</span>
-                        <span class="bg-slate-800 px-2 py-1 rounded">Kinematics</span>
-                        <span class="bg-slate-800 px-2 py-1 rounded">Sensors</span>
-                    </div>
-                    <p class="text-slate-400 line-clamp-2 transition-all duration-300 project-desc">
-                        A custom 3D-printed 6-Degree-of-Freedom robotic manipulator utilizing ESP32 microcontrollers and compliant grippers, running custom forward/inverse kinematics algorithms.
-                    </p>
-                    <div class="expand-btn absolute bottom-6 right-6 w-10 h-10 bg-slate-800 border border-slate-600 rounded-full flex items-center justify-center group-hover:bg-sky-500 group-hover:border-sky-400 transition-colors">
-                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
-                    </div>
-                </div>
-
+    <!-- UI Overlay 1: Blueprint 1 -->
+    <div class="ui-layer" id="ui-1" style="align-items: flex-end;">
+        <div class="blueprint-panel">
+            <h2 class="text-2xl font-bold">BLUEPRINT 01: [EMPTY]</h2>
+            <p class="text-slate-300 mb-4 text-sm">Awaiting project data ingestion. Systems standing by for mechanical assembly specifications.</p>
+            <div class="blueprint-empty-box">
+                [ AWAITING CAD DATA ]
             </div>
-        </section>
-    </main>
+        </div>
+    </div>
+
+    <!-- UI Overlay 2: Blueprint 2 -->
+    <div class="ui-layer" id="ui-2" style="align-items: flex-start;">
+        <div class="blueprint-panel">
+            <h2 class="text-2xl font-bold">BLUEPRINT 02: [EMPTY]</h2>
+            <p class="text-slate-300 mb-4 text-sm">Awaiting project data ingestion. Sensor integration and kinematic models pending.</p>
+            <div class="blueprint-empty-box">
+                [ AWAITING CODE LOGIC ]
+            </div>
+        </div>
+    </div>
+
+    <!-- UI Overlay 3: End Screen -->
+    <div class="ui-layer" id="ui-3" id="end-screen">
+        <h2 class="text-5xl font-bold text-white mb-4">Thanks for visiting.</h2>
+        <p class="text-xl text-sky-400 font-mono">> Abhay Siripudi_</p>
+    </div>
+
 
     <script>
-        /* --- INVERSE KINEMATICS (ROBOTIC ARM) LOGIC --- */
-        const armSVG = document.getElementById('robotic-arm');
-        const joint1 = document.getElementById('joint1');
-        const joint2 = document.getElementById('joint2');
-        const clawLeft = document.getElementById('claw-left');
-        const clawRight = document.getElementById('claw-right');
-        
-        // Arm specifications (lengths of the two segments)
-        const L1 = 120; // Length of first arm segment
-        const L2 = 100; // Length of second arm segment
-        
-        // Base coordinates of the arm relative to the SVG viewBox
-        const baseX = 0;
-        const baseY = 160;
-
-        let activeCard = null;
-
-        // Convert browser screen coordinates to SVG viewBox coordinates
-        function screenToSVG(screenX, screenY) {
-            const pt = armSVG.createSVGPoint();
-            pt.x = screenX;
-            pt.y = screenY;
-            return pt.matrixTransform(armSVG.getScreenCTM().inverse());
-        }
-
-        // The core Inverse Kinematics math
-        function calculateIK(targetX, targetY) {
-            // Translate target relative to the base joint
-            const x = targetX - baseX;
-            const y = targetY - baseY;
-            
-            // Distance from base to target
-            let dist = Math.sqrt(x * x + y * y);
-            
-            // Constrain distance so the arm doesn't "break" if target is too far
-            const maxReach = L1 + L2 - 1;
-            if (dist > maxReach) {
-                const ratio = maxReach / dist;
-                targetX = baseX + x * ratio;
-                targetY = baseY + y * ratio;
-                dist = maxReach;
-            }
-
-            // Law of Cosines to find the inner angles
-            const cosAngle2 = (dist * dist - L1 * L1 - L2 * L2) / (2 * L1 * L2);
-            // We use the negative angle to make the arm bend "up" like a desk lamp
-            const angle2Rads = -Math.acos(Math.max(-1, Math.min(1, cosAngle2))); 
-            
-            const angle1Rads = Math.atan2(y, x) - Math.atan2(L2 * Math.sin(angle2Rads), L1 + L2 * Math.cos(angle2Rads));
-
-            // Convert to degrees for SVG rotation (+90 to orient SVG upright)
-            const angle1Deg = (angle1Rads * 180 / Math.PI) + 90;
-            const angle2Deg = (angle2Rads * 180 / Math.PI);
-
-            return { a1: angle1Deg, a2: angle2Deg };
-        }
-
-        // Rest position variables
-        const restTarget = { x: -80, y: 0 };
-        let currentIK = calculateIK(restTarget.x, restTarget.y);
-        
-        // Set initial position
-        gsap.set(joint1, { rotation: currentIK.a1 });
-        gsap.set(joint2, { rotation: currentIK.a2 });
-
-        // Function triggered when a project card is clicked
-        function expandProject(card, event) {
-            // Prevent multiple clicks breaking the animation
-            if (gsap.isTweening(card) || gsap.isTweening(joint1)) return;
-
-            const isExpanding = !card.classList.contains('expanded');
-            const btn = card.querySelector('.expand-btn');
-            
-            if (isExpanding) {
-                // 1. Calculate where the button is on screen
-                const btnRect = btn.getBoundingClientRect();
-                const targetScreenX = btnRect.left + btnRect.width / 2;
-                const targetScreenY = btnRect.top + btnRect.height / 2;
-                
-                // Convert to SVG coordinates
-                const svgTarget = screenToSVG(targetScreenX, targetScreenY);
-                
-                // Calculate required joint angles
-                const targetIK = calculateIK(svgTarget.x, svgTarget.y);
-
-                // Sequence: Move Arm -> Grab -> Expand -> Release -> Retract
-                const tl = gsap.timeline();
-
-                // Move arm to the button
-                tl.to([joint1, joint2], {
-                    rotation: (i) => i === 0 ? targetIK.a1 : targetIK.a2,
-                    duration: 0.6,
-                    ease: "power2.out"
-                })
-                // Claw clamps down
-                .to(clawLeft, { rotation: 20, transformOrigin: "bottom right", duration: 0.2 }, "+=0.1")
-                .to(clawRight, { rotation: -20, transformOrigin: "bottom left", duration: 0.2 }, "<")
-                
-                // Expand the card via CSS toggle, wait for it
-                .add(() => {
-                    card.classList.add('expanded');
-                    card.querySelector('.project-desc').classList.remove('line-clamp-2');
-                })
-                
-                // The arm pretends to "pull" the card open
-                .to([joint1, joint2], {
-                    rotation: (i) => i === 0 ? targetIK.a1 - 10 : targetIK.a2 + 20,
-                    duration: 0.4,
-                    ease: "power1.inOut"
-                }, "+=0.1")
-                
-                // Release claw
-                .to(clawLeft, { rotation: 0, duration: 0.2 })
-                .to(clawRight, { rotation: 0, duration: 0.2 }, "<")
-                
-                // Return to rest
-                .to([joint1, joint2], {
-                    rotation: (i) => i === 0 ? currentIK.a1 : currentIK.a2,
-                    duration: 0.8,
-                    ease: "back.out(1.7)"
-                });
-
-                activeCard = card;
-
-            } else {
-                // Collapse logic
-                card.classList.remove('expanded');
-                card.querySelector('.project-desc').classList.add('line-clamp-2');
-                activeCard = null;
-            }
-        }
-
-
-        /* --- PROCEDURAL 3D DESK BACKGROUND (THREE.JS) --- */
-        
         const canvas = document.getElementById('three-canvas');
         const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x0f172a, 0.02);
+        scene.background = new THREE.Color(0x0f172a); // Dark slate background
+        scene.fog = new THREE.FogExp2(0x0f172a, 0.015);
 
         // Camera setup
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 30, 20);
-        camera.lookAt(0, 0, 0);
-
-        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+        
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
         // Lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
         scene.add(ambientLight);
 
-        const spotLight = new THREE.SpotLight(0x0ea5e9, 1.5);
-        spotLight.position.set(-15, 40, 15);
+        const spotLight = new THREE.SpotLight(0xffffff, 1.2);
+        spotLight.position.set(0, 80, 0);
         spotLight.angle = Math.PI / 4;
         spotLight.penumbra = 0.5;
         spotLight.castShadow = true;
-        spotLight.shadow.mapSize.width = 1024;
-        spotLight.shadow.mapSize.height = 1024;
+        spotLight.shadow.mapSize.width = 2048;
+        spotLight.shadow.mapSize.height = 2048;
         scene.add(spotLight);
 
-        const fillLight = new THREE.PointLight(0x475569, 1);
-        fillLight.position.set(20, 20, -20);
-        scene.add(fillLight);
+        const blueLight = new THREE.PointLight(0x38bdf8, 1, 100);
+        blueLight.position.set(-20, 20, -20);
+        scene.add(blueLight);
 
-        // 1. The Desk Surface (Dark Matte material)
-        const deskGeo = new THREE.PlaneGeometry(100, 100);
+        
+        // 1. The Desk
+        const deskGeo = new THREE.PlaneGeometry(300, 300);
         const deskMat = new THREE.MeshStandardMaterial({ 
             color: 0x1e293b, 
-            roughness: 0.9, 
+            roughness: 0.8, 
             metalness: 0.1 
         });
         const desk = new THREE.Mesh(deskGeo, deskMat);
@@ -375,157 +196,429 @@
         desk.receiveShadow = true;
         scene.add(desk);
 
-        // 2. Procedural Name Engraving via Canvas Texture
+        // 2. The Engraving Texture (Canvas API)
         function createEngravingTexture() {
             const ctxCanvas = document.createElement('canvas');
-            ctxCanvas.width = 1024;
+            ctxCanvas.width = 2048;
             ctxCanvas.height = 512;
             const ctx = ctxCanvas.getContext('2d');
             
-            // Fill background with exact desk color
             ctx.fillStyle = '#1e293b';
-            ctx.fillRect(0, 0, 1024, 512);
+            ctx.fillRect(0, 0, 2048, 512);
             
-            // Draw text (acts as a bump/color map)
-            ctx.font = '800 120px monospace';
+            ctx.font = '800 140px "JetBrains Mono", monospace';
             ctx.fillStyle = '#0f172a'; // Darker for depth
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             
-            // Add a slight "shadow" to make it look carved
+            // "Carved" shadow effect
             ctx.shadowColor = 'rgba(0,0,0,0.8)';
-            ctx.shadowBlur = 4;
-            ctx.shadowOffsetX = 2;
-            ctx.shadowOffsetY = 2;
-            ctx.fillText('ABHINAV', 512, 256);
+            ctx.shadowBlur = 6;
+            ctx.shadowOffsetX = 3;
+            ctx.shadowOffsetY = 3;
+            ctx.fillText('ABHAY SIRIPUDI', 1024, 200);
             
-            // Subtitle
-            ctx.font = '400 40px monospace';
-            ctx.fillStyle = '#334155';
-            ctx.shadowBlur = 0;
-            ctx.fillText('MECHATRONICS WORKSPACE', 512, 350);
+            ctx.font = '500 50px "JetBrains Mono", monospace';
+            ctx.shadowBlur = 2;
+            ctx.shadowOffsetX = 1;
+            ctx.shadowOffsetY = 1;
+            ctx.fillText('MECHATRONICS ENGINEER', 1024, 320);
 
             const texture = new THREE.CanvasTexture(ctxCanvas);
             texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
             return texture;
         }
 
-        const engravingGeo = new THREE.PlaneGeometry(30, 15);
+        const engravingGeo = new THREE.PlaneGeometry(60, 15);
         const engravingMat = new THREE.MeshStandardMaterial({
             map: createEngravingTexture(),
-            roughness: 0.8,
-            metalness: 0.2
+            roughness: 0.9,
+            bumpMap: createEngravingTexture(),
+            bumpScale: 0.5
         });
         const engraving = new THREE.Mesh(engravingGeo, engravingMat);
         engraving.rotation.x = -Math.PI / 2;
-        engraving.position.set(0, 0.01, -10); // Slightly above desk to prevent z-fighting
+        engraving.position.set(0, 0.05, 0); // At origin
         scene.add(engraving);
 
-        // 3. Generic Microcontroller Object
-        const mcuGroup = new THREE.Group();
-        
-        // MCU Board
-        const boardGeo = new THREE.BoxGeometry(4, 0.2, 6);
-        const boardMat = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.7 });
-        const board = new THREE.Mesh(boardGeo, boardMat);
-        board.position.y = 0.5;
-        board.castShadow = true;
-        mcuGroup.add(board);
-
-        // MCU Main Chip
-        const chipGeo = new THREE.BoxGeometry(1.5, 0.1, 1.5);
-        const chipMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.4 });
-        const chip = new THREE.Mesh(chipGeo, chipMat);
-        chip.position.set(0, 0.65, 0);
-        mcuGroup.add(chip);
-
-        // MCU Silver Pins
-        const pinMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8, roughness: 0.2 });
-        for (let i = 0; i < 8; i++) {
-            // Left side pins
-            const pinLGeo = new THREE.BoxGeometry(0.5, 0.6, 0.2);
-            const pinL = new THREE.Mesh(pinLGeo, pinMat);
-            pinL.position.set(-2, 0.3, -2.5 + (i * 0.7));
-            pinL.castShadow = true;
-            mcuGroup.add(pinL);
+        // 3. 3D Blueprint Papers on the table
+        function createBlueprintTexture() {
+            const ctxCanvas = document.createElement('canvas');
+            ctxCanvas.width = 512;
+            ctxCanvas.height = 512;
+            const ctx = ctxCanvas.getContext('2d');
             
-            // Right side pins
-            const pinRGeo = new THREE.BoxGeometry(0.5, 0.6, 0.2);
-            const pinR = new THREE.Mesh(pinRGeo, pinMat);
-            pinR.position.set(2, 0.3, -2.5 + (i * 0.7));
-            pinR.castShadow = true;
-            mcuGroup.add(pinR);
+            ctx.fillStyle = '#1e3a8a'; // Blueprint blue
+            ctx.fillRect(0, 0, 512, 512);
+            
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 2;
+            // Draw grid
+            for(let i=0; i<=512; i+=32) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 512); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(512, i); ctx.stroke();
+            }
+            // Draw border
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(16, 16, 480, 480);
+
+            const texture = new THREE.CanvasTexture(ctxCanvas);
+            return texture;
         }
 
-        mcuGroup.position.set(12, 0, 5);
-        mcuGroup.rotation.y = -Math.PI / 6;
-        scene.add(mcuGroup);
+        const bpMat = new THREE.MeshStandardMaterial({ map: createBlueprintTexture(), roughness: 0.5 });
+        const bpGeo = new THREE.PlaneGeometry(30, 20);
+        
+        // Blueprint 1 (Waypoint 1)
+        const blueprint1 = new THREE.Mesh(bpGeo, bpMat);
+        blueprint1.rotation.x = -Math.PI / 2;
+        blueprint1.rotation.z = Math.PI / 6;
+        blueprint1.position.set(-40, 0.1, -40);
+        blueprint1.receiveShadow = true;
+        scene.add(blueprint1);
 
-        // 4. Generic Sensor / Module
-        const sensorGroup = new THREE.Group();
-        const sBaseGeo = new THREE.CylinderGeometry(1.5, 1.5, 0.4, 32);
-        const sBaseMat = new THREE.MeshStandardMaterial({ color: 0x0ea5e9, metalness: 0.6, roughness: 0.3 });
-        const sBase = new THREE.Mesh(sBaseGeo, sBaseMat);
-        sBase.position.y = 0.2;
-        sBase.castShadow = true;
-        sensorGroup.add(sBase);
+        // Blueprint 2 (Waypoint 2)
+        const blueprint2 = new THREE.Mesh(bpGeo, bpMat);
+        blueprint2.rotation.x = -Math.PI / 2;
+        blueprint2.rotation.z = -Math.PI / 8;
+        blueprint2.position.set(40, 0.1, -80);
+        blueprint2.receiveShadow = true;
+        scene.add(blueprint2);
 
-        const sTopGeo = new THREE.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
-        const sTopMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transmission: 0.9, opacity: 1, transparent: true, roughness: 0.1 });
-        const sTop = new THREE.Mesh(sTopGeo, sTopMat);
-        sTop.position.y = 0.4;
-        sensorGroup.add(sTop);
+        
+        // Arduino Uno Low-Poly
+        const arduinoGroup = new THREE.Group();
+        // PCB
+        const pcb = new THREE.Mesh(new THREE.BoxGeometry(7, 0.2, 5), new THREE.MeshStandardMaterial({ color: 0x0369a1, roughness: 0.6 }));
+        pcb.position.y = 0.1;
+        pcb.castShadow = true;
+        arduinoGroup.add(pcb);
+        // USB Port
+        const usb = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1, 1.5), new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8 }));
+        usb.position.set(-2.75, 0.6, 1.75);
+        arduinoGroup.add(usb);
+        // Black pin headers
+        const headerMat = new THREE.MeshStandardMaterial({ color: 0x0f172a });
+        const header1 = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 0.4), headerMat);
+        header1.position.set(0, 0.35, -2.2);
+        arduinoGroup.add(header1);
+        const header2 = new THREE.Mesh(new THREE.BoxGeometry(3, 0.5, 0.4), headerMat);
+        header2.position.set(-1.5, 0.35, 2.2);
+        arduinoGroup.add(header2);
+        // MCU Chip
+        const mcu = new THREE.Mesh(new THREE.BoxGeometry(3, 0.3, 1), headerMat);
+        mcu.position.set(1, 0.35, -0.5);
+        arduinoGroup.add(mcu);
 
-        sensorGroup.position.set(-14, 0, 8);
-        scene.add(sensorGroup);
+        arduinoGroup.position.set(-15, 0, -10);
+        arduinoGroup.rotation.y = Math.PI / 4;
+        scene.add(arduinoGroup);
 
-        // Parallax and Scrolling Logic
-        let scrollY = 0;
-        let mouseX = 0;
-        let mouseY = 0;
-        const windowHalfX = window.innerWidth / 2;
-        const windowHalfY = window.innerHeight / 2;
+        // Random IR Sensors
+        function createIRSensor(x, z, rot) {
+            const sensor = new THREE.Group();
+            const board = new THREE.Mesh(new THREE.BoxGeometry(2, 0.1, 1.5), new THREE.MeshStandardMaterial({ color: 0x0284c7 }));
+            board.position.y = 0.05;
+            sensor.add(board);
+            const ledMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transmission: 0.5, opacity: 1, transparent: true });
+            const led1 = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.8), ledMat);
+            led1.position.set(0.6, 0.4, 0.4);
+            sensor.add(led1);
+            const led2 = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.8), new THREE.MeshStandardMaterial({ color: 0x0f172a }));
+            led2.position.set(0.6, 0.4, -0.4);
+            sensor.add(led2);
+            sensor.position.set(x, 0, z);
+            sensor.rotation.y = rot;
+            scene.add(sensor);
+        }
+        createIRSensor(25, -20, Math.PI/3);
+        createIRSensor(-30, -70, -Math.PI/6);
+
+        // Random Jumper Wires
+        const wireColors = [0xef4444, 0x22c55e, 0xeab308, 0x0f172a];
+        for(let i=0; i<25; i++) {
+            const startX = (Math.random() - 0.5) * 120;
+            const startZ = (Math.random() - 0.5) * 120 - 40;
+            const endX = startX + (Math.random() - 0.5) * 20;
+            const endZ = startZ + (Math.random() - 0.5) * 20;
+            
+            const curve = new THREE.QuadraticBezierCurve3(
+                new THREE.Vector3(startX, 0.1, startZ),
+                new THREE.Vector3((startX + endX)/2, Math.random() * 3 + 1, (startZ + endZ)/2),
+                new THREE.Vector3(endX, 0.1, endZ)
+            );
+            const tubeGeo = new THREE.TubeGeometry(curve, 20, 0.1, 8, false);
+            const tubeMat = new THREE.MeshStandardMaterial({ color: wireColors[Math.floor(Math.random() * wireColors.length)], roughness: 0.4 });
+            const wire = new THREE.Mesh(tubeGeo, tubeMat);
+            wire.castShadow = true;
+            scene.add(wire);
+        }
+
+        // Low-Poly Drill
+        const drill = new THREE.Group();
+        const dBody = new THREE.Mesh(new THREE.BoxGeometry(4, 2, 8), new THREE.MeshStandardMaterial({ color: 0xeab308 }));
+        dBody.position.y = 1;
+        dBody.castShadow = true;
+        drill.add(dBody);
+        const dHandle = new THREE.Mesh(new THREE.BoxGeometry(2, 6, 2), new THREE.MeshStandardMaterial({ color: 0x1e293b }));
+        dHandle.position.set(0, -2, -2);
+        dHandle.rotation.x = Math.PI / 8;
+        dHandle.castShadow = true;
+        drill.add(dHandle);
+        const dChuck = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 2), new THREE.MeshStandardMaterial({ color: 0x94a3b8 }));
+        dChuck.rotation.x = Math.PI / 2;
+        dChuck.position.set(0, 1, 5);
+        dChuck.castShadow = true;
+        drill.add(dChuck);
+        
+        drill.position.set(15, 4.5, 10);
+        drill.rotation.y = -Math.PI / 6;
+        drill.rotation.x = Math.PI / 2; // Laying flat on table
+        scene.add(drill);
+
+
+        
+        const roverGroup = new THREE.Group();
+        scene.add(roverGroup);
+
+        const redMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.6 });
+        const greyMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.4, metalness: 0.2 });
+        const servoMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 });
+
+        // Rover Base Chassis
+        const chassis = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 3, 32), greyMat);
+        chassis.position.y = 2; // Lift off ground for wheels
+        chassis.castShadow = true;
+        roverGroup.add(chassis);
+
+        // Wheels
+        function createWheel(x, z) {
+            const wheel = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 1, 16), servoMat);
+            wheel.rotation.z = Math.PI / 2;
+            wheel.position.set(x, 1.5, z);
+            wheel.castShadow = true;
+            return wheel;
+        }
+        const w1 = createWheel(4, 2.5); const w2 = createWheel(-4, 2.5);
+        const w3 = createWheel(4, -2.5); const w4 = createWheel(-4, -2.5);
+        roverGroup.add(w1, w2, w3, w4);
+
+        // Turret (Rotates Y)
+        const turret = new THREE.Group();
+        turret.position.y = 3.5;
+        roverGroup.add(turret);
+        
+        const turretBase = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 1, 32), redMat);
+        turretBase.position.y = 0.5;
+        turretBase.castShadow = true;
+        turret.add(turretBase);
+
+        // Lower Arm (Rotates X)
+        const lowerArm = new THREE.Group();
+        lowerArm.position.y = 1;
+        turret.add(lowerArm);
+
+        const lowerArmMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 8, 2), redMat);
+        lowerArmMesh.position.y = 4; // Shift up so origin is at joint
+        lowerArmMesh.castShadow = true;
+        lowerArm.add(lowerArmMesh);
+
+        // Lower Arm Servo
+        const servo1 = new THREE.Mesh(new THREE.BoxGeometry(3, 3, 3), servoMat);
+        servo1.position.set(1.5, 0, 0);
+        lowerArm.add(servo1);
+
+        // Upper Arm (Rotates X)
+        const upperArm = new THREE.Group();
+        upperArm.position.y = 8; // At top of lower arm
+        lowerArm.add(upperArm);
+
+        const upperArmMesh = new THREE.Mesh(new THREE.BoxGeometry(1.5, 7, 1.5), redMat);
+        upperArmMesh.position.y = 3.5;
+        upperArmMesh.castShadow = true;
+        upperArm.add(upperArmMesh);
+
+        // Upper Arm Servo
+        const servo2 = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.5, 2.5), servoMat);
+        servo2.position.set(-1.5, 0, 0);
+        upperArm.add(servo2);
+
+        // Gripper Assembly (Static for now, looks like the photo)
+        const gripper = new THREE.Group();
+        gripper.position.y = 7;
+        upperArm.add(gripper);
+
+        const gripperBase = new THREE.Mesh(new THREE.BoxGeometry(3, 2, 2), new THREE.MeshStandardMaterial({color: 0x0284c7})); // Blue servo part
+        gripper.add(gripperBase);
+
+        const finger1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 4, 1), greyMat);
+        finger1.position.set(1, 2, 0);
+        finger1.rotation.z = Math.PI / 8;
+        gripper.add(finger1);
+
+        const finger2 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 4, 1), greyMat);
+        finger2.position.set(-1, 2, 0);
+        finger2.rotation.z = -Math.PI / 8;
+        gripper.add(finger2);
+
+        // Initial Pose
+        lowerArm.rotation.x = Math.PI / 6;
+        upperArm.rotation.x = Math.PI / 2;
+        roverGroup.position.set(20, 0, 10); // Start off to the side
+
+
+        
+        let scrollProgress = 0;
 
         window.addEventListener('scroll', () => {
-            scrollY = window.scrollY;
+            const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+            scrollProgress = window.scrollY / maxScroll;
+            updateUI(scrollProgress);
         });
 
-        document.addEventListener('mousemove', (event) => {
-            mouseX = (event.clientX - windowHalfX) * 0.05;
-            mouseY = (event.clientY - windowHalfY) * 0.05;
-        });
+        // Toggle HTML UI based on scroll segments
+        function updateUI(p) {
+            document.querySelectorAll('.ui-layer').forEach(el => el.classList.remove('active'));
+            if (p < 0.15) document.getElementById('ui-0').classList.add('active');
+            else if (p >= 0.15 && p < 0.45) document.getElementById('ui-1').classList.add('active');
+            else if (p >= 0.45 && p < 0.8) document.getElementById('ui-2').classList.add('active');
+            else if (p >= 0.8) document.getElementById('ui-3').classList.add('active');
+        }
 
+        // Define our 3D cinematic waypoints
+        const waypoints = [
+            { // 0: Intro (Looking at Engraving)
+                camPos: new THREE.Vector3(0, 40, 30),
+                camLook: new THREE.Vector3(0, 0, 0),
+                roverTarget: new THREE.Vector3(20, 0, 10)
+            },
+            { // 1: Blueprint 1
+                camPos: new THREE.Vector3(-40, 35, -15),
+                camLook: new THREE.Vector3(-40, 0, -40),
+                roverTarget: new THREE.Vector3(-20, 0, -35) // Rover parked near blueprint 1
+            },
+            { // 2: Blueprint 2
+                camPos: new THREE.Vector3(40, 35, -55),
+                camLook: new THREE.Vector3(40, 0, -80),
+                roverTarget: new THREE.Vector3(20, 0, -75) // Rover parked near blueprint 2
+            },
+            { // 3: End Screen (Zoomed out side view)
+                camPos: new THREE.Vector3(80, 50, -20),
+                camLook: new THREE.Vector3(0, 0, -40),
+                roverTarget: new THREE.Vector3(40, 0, -40) // Rover centered looking at camera
+            }
+        ];
+
+        // Helper to get current interpolated state
+        function getInterpolatedState(p) {
+            // Map 0-1 to our 4 waypoints
+            const scaledP = p * 3; 
+            const index = Math.floor(scaledP);
+            const t = scaledP - index;
+
+            if (index >= 3) return waypoints[3]; // End clamping
+
+            const wp1 = waypoints[index];
+            const wp2 = waypoints[index + 1];
+
+            // Smoothstep interpolation for buttery movement
+            const smoothT = t * t * (3 - 2 * t);
+
+            return {
+                camPos: new THREE.Vector3().copy(wp1.camPos).lerp(wp2.camPos, smoothT),
+                camLook: new THREE.Vector3().copy(wp1.camLook).lerp(wp2.camLook, smoothT),
+                roverTarget: new THREE.Vector3().copy(wp1.roverTarget).lerp(wp2.roverTarget, smoothT)
+            };
+        }
+
+
+        
+        const clock = new THREE.Clock();
+        
+        // Current state variables (lerped towards target state)
+        const currentCamPos = waypoints[0].camPos.clone();
+        const currentCamLook = waypoints[0].camLook.clone();
+        const currentRoverPos = waypoints[0].roverTarget.clone();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = clock.getElapsedTime();
+            const delta = clock.getDelta();
+
+            // 1. Get targets from scroll position
+            const state = getInterpolatedState(scrollProgress);
+
+            // 2. Smoothly move camera
+            currentCamPos.lerp(state.camPos, 0.05);
+            currentCamLook.lerp(state.camLook, 0.05);
+            camera.position.copy(currentCamPos);
+            camera.lookAt(currentCamLook);
+
+            // 3. Rover Driving Logic
+            const dist = currentRoverPos.distanceTo(state.roverTarget);
+            if (dist > 0.1) {
+                // Move towards target
+                const moveSpeed = 0.08;
+                currentRoverPos.lerp(state.roverTarget, moveSpeed);
+                roverGroup.position.copy(currentRoverPos);
+
+                // Rotate to face direction of travel
+                const direction = new THREE.Vector3().subVectors(state.roverTarget, currentRoverPos).normalize();
+                const targetRotation = Math.atan2(direction.x, direction.z);
+                
+                // Smooth rotation mapping
+                let diff = targetRotation - roverGroup.rotation.y;
+                // Normalize angle
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                roverGroup.rotation.y += diff * 0.1;
+
+                // Spin wheels based on movement
+                const wheelSpin = dist * 0.1;
+                w1.rotation.x += wheelSpin;
+                w2.rotation.x += wheelSpin;
+                w3.rotation.x += wheelSpin;
+                w4.rotation.x += wheelSpin;
+            }
+
+            // 4. Arm Animations
+            if (scrollProgress > 0.95) {
+                // Waving Animation at the end
+                // Rover turns to face camera
+                const directionToCam = new THREE.Vector3().subVectors(camera.position, roverGroup.position).normalize();
+                const targetYRot = Math.atan2(directionToCam.x, directionToCam.z);
+                
+                let diff = targetYRot - roverGroup.rotation.y;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                roverGroup.rotation.y += diff * 0.05;
+
+                // Arm joints wave
+                turret.rotation.y = Math.sin(time * 5) * 0.5;
+                lowerArm.rotation.x = THREE.MathUtils.lerp(lowerArm.rotation.x, 0, 0.1);
+                upperArm.rotation.x = THREE.MathUtils.lerp(upperArm.rotation.x, Math.PI / 2 + Math.sin(time * 5) * 0.5, 0.1);
+
+            } else {
+                // Idle / Driving Posture
+                // Turret faces forward relative to chassis
+                turret.rotation.y = THREE.MathUtils.lerp(turret.rotation.y, 0, 0.05);
+                // Slight breathing/bouncing in arms
+                lowerArm.rotation.x = THREE.MathUtils.lerp(lowerArm.rotation.x, Math.PI / 6 + Math.sin(time * 2) * 0.05, 0.05);
+                upperArm.rotation.x = THREE.MathUtils.lerp(upperArm.rotation.x, Math.PI / 2 + Math.cos(time * 2) * 0.05, 0.05);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle Resize
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // Animation Loop
-        const clock = new THREE.Clock();
-
-        function animate() {
-            requestAnimationFrame(animate);
-            const elapsedTime = clock.getElapsedTime();
-
-            // Hover effects for the hardware
-            mcuGroup.position.y = Math.sin(elapsedTime * 2) * 0.2;
-            sensorGroup.position.y = Math.sin(elapsedTime * 2 + 1) * 0.2;
-
-            // Camera Parallax based on mouse and scroll
-            // Scroll down moves the camera slightly forward over the desk
-            const targetCamZ = 20 - (scrollY * 0.02);
-            const targetCamY = 30 - (scrollY * 0.01);
-            
-            camera.position.x += (mouseX - camera.position.x) * 0.05;
-            camera.position.y += (targetCamY - camera.position.y) * 0.05;
-            camera.position.z += (targetCamZ - camera.position.z) * 0.05;
-            
-            camera.lookAt(0, 0, targetCamZ - 20); // Keep looking at the desk center
-
-            renderer.render(scene, camera);
-        }
-
+        // Start Loop
         animate();
 
     </script>
