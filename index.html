@@ -95,31 +95,31 @@
         mainLight.shadow.bias = -0.0005;
         scene.add(mainLight);
 
-        // --- STREAMING_CHUNK:Creating Dark Walnut Desk with Highly Visible Engraving ---
+        // --- STREAMING_CHUNK:Creating Medium Oak Desk with Scaled Engraving ---
         function createEngravedWoodMaterial() {
             const size = 2048; // High res
             
-            // 1. Wood Color Texture (Lighter Wood)
+            // 1. Wood Color Texture (Medium Warm Oak)
             const colorCanvas = document.createElement('canvas');
             colorCanvas.width = size; colorCanvas.height = size;
             const ctxColor = colorCanvas.getContext('2d');
-            ctxColor.fillStyle = '#dcbda0'; // Light beige wood
+            ctxColor.fillStyle = '#b88a62'; // Medium wood tone
             ctxColor.fillRect(0, 0, size, size);
             
             // Subtle wood grain
-            ctxColor.fillStyle = 'rgba(150, 100, 50, 0.15)';
-            for(let i=0; i<2000; i++) {
-                ctxColor.fillRect(Math.random()*size, Math.random()*size, Math.random()*300, Math.random()*3);
+            ctxColor.fillStyle = 'rgba(100, 50, 20, 0.2)';
+            for(let i=0; i<2500; i++) {
+                ctxColor.fillRect(Math.random()*size, Math.random()*size, Math.random()*400, Math.random()*2 + 1);
             }
             
-            // Burn the text visually into the color map
-            ctxColor.fillStyle = '#8a5a3a'; // Softer engraved color
+            // Burn the text visually into the color map (Scaled down significantly)
+            ctxColor.fillStyle = '#5c3a21'; // Darker burn color
             ctxColor.textAlign = 'center';
             ctxColor.textBaseline = 'middle';
-            ctxColor.font = '900 85px "Inter"'; // Scaled down to fit frame
-            ctxColor.fillText('ABHAY SIRIPUDI', size/2, size/2 - 30);
-            ctxColor.font = '700 35px "JetBrains Mono"'; // Scaled down
-            ctxColor.fillText('MECHANICAL ENGINEER', size/2, size/2 + 40);
+            ctxColor.font = '900 45px "Inter"'; // Shrunk from 85px
+            ctxColor.fillText('ABHAY SIRIPUDI', size/2, size/2 - 15);
+            ctxColor.font = '700 20px "JetBrains Mono"'; // Shrunk from 35px
+            ctxColor.fillText('MECHANICAL ENGINEER', size/2, size/2 + 25);
 
             const colorMap = new THREE.CanvasTexture(colorCanvas);
 
@@ -133,10 +133,10 @@
             ctxBump.fillStyle = '#000000';
             ctxBump.textAlign = 'center';
             ctxBump.textBaseline = 'middle';
-            ctxBump.font = '900 85px "Inter"'; // Scaled down
-            ctxBump.fillText('ABHAY SIRIPUDI', size/2, size/2 - 30);
-            ctxBump.font = '700 35px "JetBrains Mono"'; // Scaled down
-            ctxBump.fillText('MECHANICAL ENGINEER', size/2, size/2 + 40);
+            ctxBump.font = '900 45px "Inter"'; 
+            ctxBump.fillText('ABHAY SIRIPUDI', size/2, size/2 - 15);
+            ctxBump.font = '700 20px "JetBrains Mono"'; 
+            ctxBump.fillText('MECHANICAL ENGINEER', size/2, size/2 + 25);
 
             const bumpMap = new THREE.CanvasTexture(bumpCanvas);
             
@@ -144,7 +144,7 @@
                 map: colorMap,
                 bumpMap: bumpMap,
                 bumpScale: 1.5, 
-                roughness: 0.7,
+                roughness: 0.8,
             });
         }
 
@@ -264,7 +264,7 @@
         scene.add(bp2); blueprints.push(bp2);
 
 
-        // --- STREAMING_CHUNK:Helper Bot & Hologram ---
+        // --- STREAMING_CHUNK:Helper Bot with Scrolling Visor & Jarvis Hologram ---
         const botGroup = new THREE.Group();
         scene.add(botGroup);
         botGroup.position.set(15, 10, -20); // Hovering near origin
@@ -274,20 +274,44 @@
         botBody.castShadow = true;
         botGroup.add(botBody);
 
-        const visorMat = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.1 });
+        // Scrolling Green Hacker Text Visor
+        const visorCanvas = document.createElement('canvas');
+        visorCanvas.width = 512; visorCanvas.height = 64;
+        const visorCtx = visorCanvas.getContext('2d');
+        visorCtx.fillStyle = '#000000';
+        visorCtx.fillRect(0, 0, 512, 64);
+        visorCtx.fillStyle = '#00ff00'; // Hacker Green
+        visorCtx.font = 'bold 32px "JetBrains Mono"';
+        visorCtx.textAlign = 'center';
+        visorCtx.textBaseline = 'middle';
+        visorCtx.fillText('> CLICK TO GET HELP <', 256, 32);
+
+        const visorTex = new THREE.CanvasTexture(visorCanvas);
+        visorTex.wrapS = THREE.RepeatWrapping;
+        visorTex.wrapT = THREE.RepeatWrapping;
+        visorTex.repeat.set(2, 1);
+
+        const visorMat = new THREE.MeshStandardMaterial({ 
+            color: 0x111111, 
+            roughness: 0.1,
+            emissive: 0x00ff00,
+            emissiveMap: visorTex,
+            emissiveIntensity: 0.8
+        });
         const visor = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, 2, 32, 1, false, -Math.PI/3, Math.PI/1.5), visorMat);
         visor.position.y = 0.5;
         botGroup.add(visor);
 
-        // Glowing Hologram Text above bot
+        // Glowing Jarvis Hologram Text above bot
         const holoCanvas = document.createElement('canvas');
         holoCanvas.width = 512; holoCanvas.height = 256;
         const holoCtx = holoCanvas.getContext('2d');
-        holoCtx.fillStyle = '#64ffda';
-        holoCtx.font = 'bold 40px "JetBrains Mono"';
+        holoCtx.fillStyle = '#00d8ff'; // Jarvis Light Blue
+        holoCtx.font = 'bold 45px "JetBrains Mono"';
         holoCtx.textAlign = 'center';
-        holoCtx.fillText('> SYS.INIT', 256, 100);
-        holoCtx.fillText('OPERATOR: ABHAY', 256, 160);
+        holoCtx.fillText('SYS: A. SIRIPUDI', 256, 80);
+        holoCtx.font = '30px "JetBrains Mono"';
+        holoCtx.fillText('STATUS: MECH ONLINE', 256, 140);
         
         const holoTex = new THREE.CanvasTexture(holoCanvas);
         const holoMat = new THREE.MeshBasicMaterial({ map: holoTex, transparent: true, opacity: 0.8, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
@@ -350,8 +374,8 @@
                 gsap.to(activeBlueprint.rotation, { z: 0, duration: 1.2, ease: "power2.inOut" }); // Flat to camera
 
                 // 2. Move camera to perfectly frame the floating blueprint
-                // Y is 65 (high enough to not clip text), looking straight down
-                gsap.to(camera.position, { x: bpX, y: 65, z: bpZ + 2, duration: 1.2, ease: "power2.inOut" });
+                // Y is bumped from 65 to 85 to zoom out and fit the whole blueprint!
+                gsap.to(camera.position, { x: bpX, y: 85, z: bpZ + 2, duration: 1.2, ease: "power2.inOut" });
                 
                 gsap.to(cameraLookTarget, { 
                     x: bpX, y: 15, z: bpZ, 
@@ -465,6 +489,9 @@
             // Floating Bot & Hologram Physics
             botGroup.position.y = Math.sin(time * 2) * 1.5 + 8;
             hologram.material.opacity = 0.6 + Math.sin(time * 10) * 0.2; // Flicker effect
+            
+            // Scroll the hacker text on the visor
+            visorTex.offset.x -= 0.005;
             
             // Bot follows camera track slightly
             const botTargetX = cameraLookTarget.x + 15;
