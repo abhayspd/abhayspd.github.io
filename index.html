@@ -3,59 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Abhay Siripudi | Mechanical Portfolio</title>
+    <title>Abhay Siripudi | Premium Portfolio</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Upgraded Three.js for modern geometries -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.146.0/build/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@300;500;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;900&family=Inter:wght@300;500;800;900&display=swap" rel="stylesheet">
 
     <style>
-        body { margin: 0; overflow-x: hidden; background-color: #e8dcc7; font-family: 'Inter', sans-serif; height: 300vh; }
+        /* Hiding the default cursor completely */
+        body { 
+            margin: 0; 
+            overflow-x: hidden; 
+            background-color: #fbcfae; /* Soft peach pastel */
+            font-family: 'Inter', sans-serif; 
+            height: 400vh; 
+            cursor: none; 
+        }
         
         #webgl-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
         
-        #cursor { position: fixed; width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.5); border-radius: 50%; pointer-events: none; z-index: 50; transform: translate(-50%, -50%); transition: width 0.2s, height 0.2s, background-color 0.2s; backdrop-filter: invert(1); }
-        #cursor.hover { width: 30px; height: 30px; background-color: rgba(255,255,255,0.2); border-color: #fff; }
+        /* Custom glowing cursor */
+        #cursor { 
+            position: fixed; 
+            width: 24px; 
+            height: 24px; 
+            border: 2px solid rgba(0,0,0,0.4); 
+            border-radius: 50%; 
+            pointer-events: none; 
+            z-index: 50; 
+            transform: translate(-50%, -50%); 
+            transition: width 0.2s, height 0.2s, background-color 0.2s, border-color 0.2s; 
+        }
+        #cursor.hover { 
+            width: 40px; 
+            height: 40px; 
+            background-color: rgba(0,0,0,0.1); 
+            border-color: #000; 
+        }
 
-        /* Help Screen */
-        #help-screen { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9); width: 400px; background: rgba(15, 15, 20, 0.9); backdrop-filter: blur(15px); border: 1px solid rgba(100,255,218,0.3); border-radius: 12px; padding: 30px; color: white; z-index: 30; opacity: 0; pointer-events: none; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8); }
+        #help-screen { 
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9); width: 400px; 
+            background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); border: 1px solid rgba(0,0,0,0.1); 
+            border-radius: 20px; padding: 30px; color: #111; z-index: 30; opacity: 0; pointer-events: none; 
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); 
+        }
         #help-screen.active { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
 
-        /* Back Button for zooming out of blueprints */
-        #back-btn { position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%) translateY(20px); padding: 14px 28px; background: #64ffda; color: #0a192f; border-radius: 30px; font-weight: 800; font-family: 'JetBrains Mono'; font-size: 14px; cursor: pointer; z-index: 30; opacity: 0; pointer-events: none; transition: all 0.3s; box-shadow: 0 10px 25px rgba(100,255,218,0.2); border: none; text-transform: uppercase; letter-spacing: 1px;}
+        #back-btn { 
+            position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%) translateY(20px); 
+            padding: 16px 32px; background: #111; color: #fff; border-radius: 30px; font-weight: 800; 
+            font-family: 'JetBrains Mono'; font-size: 14px; cursor: none; z-index: 30; opacity: 0; 
+            pointer-events: none; transition: all 0.3s; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: none; 
+            text-transform: uppercase; letter-spacing: 1px;
+        }
         #back-btn.active { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
-        #back-btn:hover { background: #ffffff; box-shadow: 0 10px 25px rgba(255,255,255,0.3); }
+        #back-btn:hover { background: #333; transform: translateX(-50%) translateY(-3px); }
 
-        #hint { position: fixed; top: 40px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.6); font-family: 'JetBrains Mono'; font-size: 12px; pointer-events: none; z-index: 20; letter-spacing: 2px; text-transform: uppercase; background: rgba(0,0,0,0.5); padding: 8px 16px; border-radius: 20px;}
+        #hint { 
+            position: fixed; top: 40px; left: 50%; transform: translateX(-50%); color: rgba(0,0,0,0.6); 
+            font-family: 'JetBrains Mono'; font-size: 11px; pointer-events: none; z-index: 20; 
+            letter-spacing: 3px; text-transform: uppercase; background: rgba(255,255,255,0.4); 
+            padding: 10px 20px; border-radius: 30px; backdrop-filter: blur(10px);
+        }
     </style>
 </head>
 <body>
 
     <div id="cursor"></div>
     <div id="webgl-container"></div>
-    
     <div id="hint">SCROLL TO EXPLORE WORKBENCH</div>
-
     <button id="back-btn">Return to Desk</button>
 
     <div id="help-screen">
         <div class="flex justify-between items-center mb-6">
-            <h2 class="text-xl font-bold font-mono text-[#64ffda]">SYS.INFO</h2>
-            <button id="close-help" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+            <h2 class="text-xl font-bold font-mono text-blue-600">SYS_INFO</h2>
+            <button id="close-help" class="text-gray-400 hover:text-black text-2xl font-bold" style="cursor: none;">&times;</button>
         </div>
-        <div class="font-mono text-sm text-gray-300 space-y-4">
+        <div class="font-mono text-sm text-gray-700 space-y-4">
             <p>> OPERATOR: Abhay Siripudi</p>
             <p>> DESIGNATION: Mechanical Engineer</p>
-            <p>> STATUS: Ready for prototyping.</p>
-            <hr class="border-gray-700">
-            <p>Click on the blueprints on the desk to physically examine CAD files.</p>
-            <p>Scroll down to navigate the workspace.</p>
+            <p>> STATUS: Hardware online.</p>
+            <hr class="border-gray-200">
+            <p>1. Scroll to pan the camera across the workbench.</p>
+            <p>2. Click on blueprints to inspect them.</p>
         </div>
     </div>
 
     <script>
-        // --- CUSTOM CURSOR ---
+        // --- STREAMING_CHUNK:Custom Cursor Logic ---
         const cursor = document.getElementById('cursor');
         let mouseX = window.innerWidth / 2, mouseY = window.innerHeight / 2;
         window.addEventListener('mousemove', (e) => {
@@ -64,11 +101,11 @@
             cursor.style.top = mouseY + 'px';
         });
 
-        // --- STREAMING_CHUNK:Initializing Three.js Engine & Premium Lighting ---
+        // --- STREAMING_CHUNK:Premium Three.js Setup (Soft Lighting) ---
         const container = document.getElementById('webgl-container');
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xe8dcc7); 
-        scene.fog = new THREE.FogExp2(0xe8dcc7, 0.003);
+        scene.background = new THREE.Color(0xfbcfae); // Soft Peach
+        scene.fog = new THREE.FogExp2(0xfbcfae, 0.002);
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
         
@@ -76,255 +113,325 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         
-        // Professional Lighting
+        // Soft Hollywood-style lighting
         renderer.outputEncoding = THREE.sRGBEncoding;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.1;
+        renderer.toneMappingExposure = 1.0;
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         container.appendChild(renderer.domElement);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-        scene.add(ambientLight);
+        // Soft ambient fill light
+        const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0xe6af8c, 0.6);
+        scene.add(hemisphereLight);
         
-        const mainLight = new THREE.DirectionalLight(0xfff0dd, 2.0);
-        mainLight.position.set(50, 100, 50);
+        // Main cast light
+        const mainLight = new THREE.DirectionalLight(0xfff5e6, 1.2);
+        mainLight.position.set(50, 120, 50);
         mainLight.castShadow = true;
         mainLight.shadow.mapSize.width = 2048;
         mainLight.shadow.mapSize.height = 2048;
         mainLight.shadow.bias = -0.0005;
         scene.add(mainLight);
 
-        // --- STREAMING_CHUNK:Creating Medium Oak Desk with Scaled Engraving ---
-        function createEngravedWoodMaterial() {
-            const size = 2048; // High res
-            
-            // 1. Wood Color Texture (Medium Warm Oak)
-            const colorCanvas = document.createElement('canvas');
-            colorCanvas.width = size; colorCanvas.height = size;
-            const ctxColor = colorCanvas.getContext('2d');
-            ctxColor.fillStyle = '#b88a62'; // Medium wood tone
-            ctxColor.fillRect(0, 0, size, size);
-            
-            // Subtle wood grain
-            ctxColor.fillStyle = 'rgba(100, 50, 20, 0.2)';
-            for(let i=0; i<2500; i++) {
-                ctxColor.fillRect(Math.random()*size, Math.random()*size, Math.random()*400, Math.random()*2 + 1);
-            }
-            
-            // Burn the text visually into the color map (Scaled down significantly)
-            ctxColor.fillStyle = '#5c3a21'; // Darker burn color
-            ctxColor.textAlign = 'center';
-            ctxColor.textBaseline = 'middle';
-            ctxColor.font = '900 45px "Inter"'; // Shrunk from 85px
-            ctxColor.fillText('ABHAY SIRIPUDI', size/2, size/2 - 15);
-            ctxColor.font = '700 20px "JetBrains Mono"'; // Shrunk from 35px
-            ctxColor.fillText('MECHANICAL ENGINEER', size/2, size/2 + 25);
-
-            const colorMap = new THREE.CanvasTexture(colorCanvas);
-
-            // 2. Bump Map for physical depth
-            const bumpCanvas = document.createElement('canvas');
-            bumpCanvas.width = size; bumpCanvas.height = size;
-            const ctxBump = bumpCanvas.getContext('2d');
-            ctxBump.fillStyle = '#888888';
-            ctxBump.fillRect(0, 0, size, size);
-            
-            ctxBump.fillStyle = '#000000';
-            ctxBump.textAlign = 'center';
-            ctxBump.textBaseline = 'middle';
-            ctxBump.font = '900 45px "Inter"'; 
-            ctxBump.fillText('ABHAY SIRIPUDI', size/2, size/2 - 15);
-            ctxBump.font = '700 20px "JetBrains Mono"'; 
-            ctxBump.fillText('MECHANICAL ENGINEER', size/2, size/2 + 25);
-
-            const bumpMap = new THREE.CanvasTexture(bumpCanvas);
-            
-            return new THREE.MeshStandardMaterial({
-                map: colorMap,
-                bumpMap: bumpMap,
-                bumpScale: 1.5, 
-                roughness: 0.8,
-            });
+        // --- STREAMING_CHUNK:The Physical Table & Engraving ---
+        // 1. Texture Generation
+        const tableSize = 400;
+        const texSize = 2048;
+        const colorCanvas = document.createElement('canvas');
+        colorCanvas.width = texSize; colorCanvas.height = texSize;
+        const ctxColor = colorCanvas.getContext('2d');
+        ctxColor.fillStyle = '#e6af8c'; // Slightly darker peach for table
+        ctxColor.fillRect(0, 0, texSize, texSize);
+        
+        // Subtle wood grain lines
+        ctxColor.fillStyle = 'rgba(200, 140, 100, 0.1)';
+        for(let i=0; i<3000; i++) {
+            ctxColor.fillRect(Math.random()*texSize, Math.random()*texSize, Math.random()*500, Math.random()*3 + 1);
         }
 
-        const desk = new THREE.Mesh(new THREE.PlaneGeometry(300, 300), createEngravedWoodMaterial());
-        desk.rotation.x = -Math.PI / 2;
-        desk.receiveShadow = true;
-        scene.add(desk);
+        // The Engraving (Centered, tasteful scale)
+        ctxColor.fillStyle = '#c98a63'; // Darker inset color
+        ctxColor.textAlign = 'center';
+        ctxColor.textBaseline = 'middle';
+        ctxColor.font = '900 65px "Inter"'; 
+        ctxColor.fillText('ABHAY SIRIPUDI', texSize/2, texSize/2 - 15);
+        ctxColor.font = '700 25px "JetBrains Mono"'; 
+        ctxColor.fillText('MECHANICAL ENGINEER', texSize/2, texSize/2 + 45);
 
-        // --- STREAMING_CHUNK:Procedural 3D Electronics (Arduino & Drill) ---
-        // 1. Arduino Uno
-        const arduino = new THREE.Group();
-        const pcbMat = new THREE.MeshStandardMaterial({color: 0x0055aa, roughness: 0.9});
-        const pcb = new THREE.Mesh(new THREE.BoxGeometry(10, 0.3, 7), pcbMat);
-        pcb.castShadow = true; pcb.receiveShadow = true;
+        const colorMap = new THREE.CanvasTexture(colorCanvas);
+
+        // Bump map for physical depth
+        const bumpCanvas = document.createElement('canvas');
+        bumpCanvas.width = texSize; bumpCanvas.height = texSize;
+        const ctxBump = bumpCanvas.getContext('2d');
+        ctxBump.fillStyle = '#888888';
+        ctxBump.fillRect(0, 0, texSize, texSize);
+        ctxBump.fillStyle = '#000000'; // Deep cut
+        ctxBump.textAlign = 'center';
+        ctxBump.textBaseline = 'middle';
+        ctxBump.font = '900 65px "Inter"'; 
+        ctxBump.fillText('ABHAY SIRIPUDI', texSize/2, texSize/2 - 15);
+        ctxBump.font = '700 25px "JetBrains Mono"'; 
+        ctxBump.fillText('MECHANICAL ENGINEER', texSize/2, texSize/2 + 45);
+
+        const bumpMap = new THREE.CanvasTexture(bumpCanvas);
         
-        const usbMat = new THREE.MeshStandardMaterial({color: 0xcccccc, metalness: 0.8, roughness: 0.2});
-        const usb = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2.5), usbMat);
-        usb.position.set(-4, 1.15, -2);
-        usb.castShadow = true;
+        const tableMat = new THREE.MeshStandardMaterial({
+            map: colorMap, bumpMap: bumpMap, bumpScale: 1.5, roughness: 0.6, metalness: 0.05
+        });
 
-        const chipMat = new THREE.MeshStandardMaterial({color: 0x111111, roughness: 0.8});
-        const chip = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 1.5), chipMat);
-        chip.position.set(1, 0.4, 1);
-        chip.castShadow = true;
+        // The physical table top
+        const tableGroup = new THREE.Group();
+        const tableTop = new THREE.Mesh(new THREE.BoxGeometry(tableSize, 4, tableSize), tableMat);
+        tableTop.position.y = -2; // Surface is at Y=0
+        tableTop.receiveShadow = true;
+        tableGroup.add(tableTop);
 
-        arduino.add(pcb, usb, chip);
-        arduino.position.set(-25, 0.15, 10);
-        arduino.rotation.y = Math.PI / 6;
-        scene.add(arduino);
+        // Table Legs
+        const legMat = new THREE.MeshStandardMaterial({color: 0x333333, roughness: 0.8});
+        const legPositions = [
+            [-190, -52, -190], [190, -52, -190], [-190, -52, 190], [190, -52, 190]
+        ];
+        legPositions.forEach(pos => {
+            const leg = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 100, 32), legMat);
+            leg.position.set(...pos);
+            leg.castShadow = true;
+            tableGroup.add(leg);
+        });
+        scene.add(tableGroup);
 
-        // 2. Power Drill
+        // --- STREAMING_CHUNK:Caution & WIP Stickers ---
+        function createSticker(text, isCaution) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            
+            if(isCaution) {
+                // Yellow/Black stripes
+                ctx.fillStyle = '#ffcc00'; ctx.fillRect(0,0,512,128);
+                ctx.fillStyle = '#111111';
+                for(let i=-100; i<600; i+=40) {
+                    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i+60, 128); ctx.lineTo(i+90, 128); ctx.lineTo(i+30, 0); ctx.fill();
+                }
+                // Box in middle
+                ctx.fillStyle = '#ffcc00'; ctx.fillRect(106, 24, 300, 80);
+                ctx.strokeStyle = '#111111'; ctx.lineWidth = 4; ctx.strokeRect(106, 24, 300, 80);
+            } else {
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,512,128);
+                ctx.strokeStyle = '#ff3333'; ctx.lineWidth = 8; ctx.strokeRect(0,0,512,128);
+            }
+
+            ctx.fillStyle = isCaution ? '#111111' : '#ff3333';
+            ctx.font = '900 40px "Inter"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(text, 256, 64);
+
+            const tex = new THREE.CanvasTexture(canvas);
+            return new THREE.MeshStandardMaterial({map: tex, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -1});
+        }
+
+        // Sticker 1 on table edge
+        const sticker1 = new THREE.Mesh(new THREE.PlaneGeometry(30, 7.5), createSticker('WORK IN PROGRESS', false));
+        sticker1.position.set(-50, -0.01, 200.1);
+        sticker1.rotation.x = 0; // Front face
+        tableGroup.add(sticker1);
+
+        // Sticker 2 flat on table
+        const sticker2 = new THREE.Mesh(new THREE.PlaneGeometry(40, 10), createSticker('CAUTION: HIGH VOLTAGE', true));
+        sticker2.position.set(-100, 0.1, -50);
+        sticker2.rotation.x = -Math.PI/2;
+        sticker2.rotation.z = Math.PI/6;
+        tableGroup.add(sticker2);
+
+
+        // --- STREAMING_CHUNK:High-Poly Procedural Tools (Arduino & Drill) ---
+        
+        // 1. High-Poly Drill
         const drill = new THREE.Group();
-        const yellowMat = new THREE.MeshStandardMaterial({color: 0xffcc00, roughness: 0.5});
-        const greyMat = new THREE.MeshStandardMaterial({color: 0x333333, roughness: 0.7});
+        const yellowPoly = new THREE.MeshStandardMaterial({color: 0xffb703, roughness: 0.3, metalness: 0.1});
+        const blackPoly = new THREE.MeshStandardMaterial({color: 0x222222, roughness: 0.8});
+        const silverPoly = new THREE.MeshStandardMaterial({color: 0xaaaaaa, metalness: 0.9, roughness: 0.2});
+        const redPoly = new THREE.MeshStandardMaterial({color: 0xe63946, roughness: 0.5});
+
+        // Drill Body
+        const drillBody = new THREE.Mesh(new THREE.CylinderGeometry(2, 2.2, 14, 32), yellowPoly);
+        drillBody.rotation.x = Math.PI/2;
+        drillBody.position.y = 3.5;
+        drillBody.castShadow = true;
         
-        const body = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 12, 16), yellowMat);
-        body.rotation.z = Math.PI / 2;
-        body.position.y = 2;
-        body.castShadow = true;
+        // Handle
+        const drillHandle = new THREE.Mesh(new THREE.BoxGeometry(2.5, 9, 3.5), blackPoly);
+        drillHandle.position.set(0, -0.5, 2.5);
+        drillHandle.rotation.x = -Math.PI/8;
+        drillHandle.castShadow = true;
 
-        const handle = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.2, 10, 16), greyMat);
-        handle.rotation.x = Math.PI / 2;
-        handle.rotation.z = -Math.PI / 8;
-        handle.position.set(-2, 2, 4);
-        handle.castShadow = true;
+        // Battery Pack
+        const battery = new THREE.Mesh(new THREE.BoxGeometry(4.5, 2.5, 6), blackPoly);
+        battery.position.set(0, -4.5, 4);
+        battery.rotation.x = -Math.PI/8;
+        battery.castShadow = true;
 
-        const chuck = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 0.5, 4, 16), greyMat);
-        chuck.rotation.z = -Math.PI / 2;
-        chuck.position.set(8, 2, 0);
+        // Trigger
+        const trigger = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), redPoly);
+        trigger.position.set(0, 1.5, 0.5);
+        trigger.rotation.x = -Math.PI/8;
+
+        // Lathe Chuck (High Poly)
+        const chuckPoints = [];
+        for(let i=0; i<10; i++) chuckPoints.push(new THREE.Vector2(1.5 - i*0.05, i*0.4));
+        const chuckGeo = new THREE.LatheGeometry(chuckPoints, 32);
+        const chuck = new THREE.Mesh(chuckGeo, silverPoly);
+        chuck.rotation.x = -Math.PI/2;
+        chuck.position.set(0, 3.5, -7);
         chuck.castShadow = true;
 
-        drill.add(body, handle, chuck);
-        drill.position.set(30, 1, 40);
-        drill.rotation.y = -Math.PI / 4;
+        drill.add(drillBody, drillHandle, battery, trigger, chuck);
+        drill.position.set(80, 4.5, 60);
+        drill.rotation.y = -Math.PI/3;
         scene.add(drill);
+
+        // 2. High-Poly Arduino Uno
+        const arduino = new THREE.Group();
+        const pcbMat = new THREE.MeshStandardMaterial({color: 0x1d5182, roughness: 0.9});
+        const icMat = new THREE.MeshStandardMaterial({color: 0x111111, roughness: 0.8});
+
+        const board = new THREE.Mesh(new THREE.BoxGeometry(14, 0.4, 20), pcbMat);
+        board.castShadow = true; board.receiveShadow = true;
+        
+        const usb = new THREE.Mesh(new THREE.BoxGeometry(3, 2.5, 3.5), silverPoly);
+        usb.position.set(-4.5, 1.45, -8);
+        usb.castShadow = true;
+
+        const powerJack = new THREE.Mesh(new THREE.BoxGeometry(3, 2.5, 4), blackPoly);
+        powerJack.position.set(4.5, 1.45, -8);
+        powerJack.castShadow = true;
+
+        const atmega = new THREE.Mesh(new THREE.BoxGeometry(3, 0.6, 10), icMat);
+        atmega.position.set(3, 0.5, 2);
+        atmega.castShadow = true;
+
+        arduino.add(board, usb, powerJack, atmega);
+
+        // Headers
+        for(let i=0; i<2; i++) {
+            const header = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.5, 12), icMat);
+            header.position.set(-5.5 + i*11, 0.9, 1);
+            header.castShadow = true;
+            arduino.add(header);
+        }
+
+        arduino.position.set(-60, 0.2, 40);
+        arduino.rotation.y = Math.PI/4;
+        scene.add(arduino);
+
 
         // --- STREAMING_CHUNK:High-Res Blueprints ---
         const blueprints = [];
         
-        function createBlueprintMaterial(title, subtitle, isSecond) {
+        function createBlueprintMaterial(title, subtitle, accentColor) {
             const canvas = document.createElement('canvas');
-            canvas.width = 2048; canvas.height = 2048; // Massive resolution to prevent blur
+            canvas.width = 2048; canvas.height = 2048; 
             const ctx = canvas.getContext('2d');
             
-            ctx.fillStyle = '#0a192f'; ctx.fillRect(0, 0, 2048, 2048);
+            ctx.fillStyle = '#f8f9fa'; ctx.fillRect(0, 0, 2048, 2048);
             
-            // Grid lines
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'; ctx.lineWidth = 4;
+            // Subtle Grid
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.05)'; ctx.lineWidth = 4;
             for(let i=0; i<=2048; i+=64) {
                 ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,2048); ctx.stroke();
                 ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(2048,i); ctx.stroke();
             }
             
-            // White border
-            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 12; ctx.strokeRect(60, 60, 1928, 1928);
+            // Border & Header
+            ctx.strokeStyle = '#222'; ctx.lineWidth = 12; ctx.strokeRect(80, 80, 1888, 1928);
+            ctx.fillStyle = accentColor; ctx.fillRect(80, 80, 1888, 200);
             
-            // Text (Made much larger)
-            ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 120px "Inter"'; ctx.textAlign = 'left';
-            ctx.fillText(title, 120, 250);
+            ctx.fillStyle = '#fff';
+            ctx.font = '900 100px "Inter"'; ctx.textAlign = 'left';
+            ctx.fillText(title, 140, 210);
             
-            ctx.fillStyle = '#64ffda';
-            ctx.font = '70px "JetBrains Mono"';
-            ctx.fillText(subtitle, 120, 360);
+            ctx.fillStyle = '#333';
+            ctx.font = '700 60px "JetBrains Mono"';
+            ctx.fillText(subtitle, 140, 380);
 
-            // Drawings
-            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 8;
-            if(isSecond) {
-                ctx.strokeRect(500, 600, 800, 800);
-                ctx.beginPath(); ctx.moveTo(500,600); ctx.lineTo(1300,1400); ctx.stroke();
-            } else {
-                ctx.beginPath(); ctx.arc(1024, 1024, 400, 0, Math.PI*2); ctx.stroke();
-                ctx.beginPath(); ctx.arc(1024, 1024, 300, 0, Math.PI*2); ctx.stroke();
-            }
+            // Mock Data/Schematics
+            ctx.font = '400 35px "Inter"'; ctx.fillStyle = '#555';
+            ctx.fillText('• Kinematic Analysis verified.', 140, 500);
+            ctx.fillText('• PID loops tuned via C++ simulation.', 140, 560);
+            ctx.fillText('• Payload capacity: 4.5kg.', 140, 620);
+
+            ctx.strokeStyle = accentColor; ctx.lineWidth = 8;
+            ctx.strokeRect(140, 750, 800, 600);
+            ctx.beginPath(); ctx.arc(1400, 1050, 250, 0, Math.PI*2); ctx.stroke();
 
             const tex = new THREE.CanvasTexture(canvas);
-            return new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 });
+            return new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9, metalness: 0.1 });
         }
 
         const bpGeo = new THREE.PlaneGeometry(35, 35);
         
         // BP1
-        const bp1 = new THREE.Mesh(bpGeo, createBlueprintMaterial('UAV DIFF. MECH', 'KINEMATIC ANALYSIS', false));
-        bp1.rotation.x = -Math.PI / 2; bp1.rotation.z = Math.PI / 12;
-        bp1.position.set(40, 0.2, 80);
-        // Save original transform for math later
+        const bp1 = new THREE.Mesh(bpGeo, createBlueprintMaterial('PROJECT_01: UAV DIFF', 'AEROSPACE & CONTROL', '#2563eb'));
+        bp1.rotation.x = -Math.PI / 2; bp1.rotation.z = Math.PI / 16;
+        bp1.position.set(30, 0.2, 100);
         bp1.userData = { origPos: bp1.position.clone(), origRot: bp1.rotation.clone() };
         bp1.receiveShadow = true; bp1.castShadow = true;
         scene.add(bp1); blueprints.push(bp1);
 
         // BP2
-        const bp2 = new THREE.Mesh(bpGeo, createBlueprintMaterial('SENSOR FUSION', 'C++ / FIRMWARE', true));
-        bp2.rotation.x = -Math.PI / 2; bp2.rotation.z = -Math.PI / 8;
-        bp2.position.set(-30, 0.2, 160);
+        const bp2 = new THREE.Mesh(bpGeo, createBlueprintMaterial('PROJECT_02: FUSION', 'C++ / EMBEDDED', '#e63946'));
+        bp2.rotation.x = -Math.PI / 2; bp2.rotation.z = -Math.PI / 12;
+        bp2.position.set(-30, 0.2, 200);
         bp2.userData = { origPos: bp2.position.clone(), origRot: bp2.rotation.clone() };
         bp2.receiveShadow = true; bp2.castShadow = true;
         scene.add(bp2); blueprints.push(bp2);
 
 
-        // --- STREAMING_CHUNK:Helper Bot with Scrolling Visor & Jarvis Hologram ---
+        // --- STREAMING_CHUNK:Tiny Floating Bot (Sleek Capsule) ---
         const botGroup = new THREE.Group();
         scene.add(botGroup);
-        botGroup.position.set(15, 10, -20); // Hovering near origin
+        botGroup.position.set(20, 15, -10); 
 
-        const botPlasticMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.1 });
-        const botBody = new THREE.Mesh(new THREE.CapsuleGeometry(2.5, 3, 16, 32), botPlasticMat);
+        // White Glossy Body
+        const botPlasticMat = new THREE.MeshPhysicalMaterial({ 
+            color: 0xffffff, roughness: 0.1, metalness: 0.1, clearcoat: 1.0, clearcoatRoughness: 0.1 
+        });
+        const botBody = new THREE.Mesh(new THREE.CapsuleGeometry(2, 2.5, 16, 32), botPlasticMat);
         botBody.castShadow = true;
         botGroup.add(botBody);
 
-        // Scrolling Green Hacker Text Visor
-        const visorCanvas = document.createElement('canvas');
-        visorCanvas.width = 512; visorCanvas.height = 64;
-        const visorCtx = visorCanvas.getContext('2d');
-        visorCtx.fillStyle = '#000000';
-        visorCtx.fillRect(0, 0, 512, 64);
-        visorCtx.fillStyle = '#00ff00'; // Hacker Green
-        visorCtx.font = 'bold 32px "JetBrains Mono"';
-        visorCtx.textAlign = 'center';
-        visorCtx.textBaseline = 'middle';
-        visorCtx.fillText('> CLICK TO GET HELP <', 256, 32);
-
-        const visorTex = new THREE.CanvasTexture(visorCanvas);
-        visorTex.wrapS = THREE.RepeatWrapping;
-        visorTex.wrapT = THREE.RepeatWrapping;
-        visorTex.repeat.set(2, 1);
-
-        const visorMat = new THREE.MeshStandardMaterial({ 
-            color: 0x111111, 
-            roughness: 0.1,
-            emissive: 0x00ff00,
-            emissiveMap: visorTex,
-            emissiveIntensity: 0.8
+        // Glowing Black Glass Visor (No text, just sleek)
+        const visorMat = new THREE.MeshPhysicalMaterial({ 
+            color: 0x050505, roughness: 0.1, metalness: 0.8, transmission: 0.5, 
+            emissive: 0x111111, emissiveIntensity: 0.5
         });
-        const visor = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, 2, 32, 1, false, -Math.PI/3, Math.PI/1.5), visorMat);
+        const visor = new THREE.Mesh(new THREE.CylinderGeometry(2.1, 2.1, 1.5, 32, 1, false, -Math.PI/3, Math.PI/1.5), visorMat);
         visor.position.y = 0.5;
         botGroup.add(visor);
 
-        // Glowing Jarvis Hologram Text above bot
-        const holoCanvas = document.createElement('canvas');
-        holoCanvas.width = 512; holoCanvas.height = 256;
-        const holoCtx = holoCanvas.getContext('2d');
-        holoCtx.fillStyle = '#00d8ff'; // Jarvis Light Blue
-        holoCtx.font = 'bold 45px "JetBrains Mono"';
-        holoCtx.textAlign = 'center';
-        holoCtx.fillText('SYS: A. SIRIPUDI', 256, 80);
-        holoCtx.font = '30px "JetBrains Mono"';
-        holoCtx.fillText('STATUS: MECH ONLINE', 256, 140);
+
+        // --- STREAMING_CHUNK:Outro Sign (THANK YOU) ---
+        const outroCanvas = document.createElement('canvas');
+        outroCanvas.width = 1024; outroCanvas.height = 256;
+        const outroCtx = outroCanvas.getContext('2d');
+        outroCtx.fillStyle = '#111'; outroCtx.fillRect(0, 0, 1024, 256);
+        outroCtx.fillStyle = '#fff';
+        outroCtx.font = '900 80px "Inter"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        outroCtx.fillText('THANK YOU', 512, 128);
         
-        const holoTex = new THREE.CanvasTexture(holoCanvas);
-        const holoMat = new THREE.MeshBasicMaterial({ map: holoTex, transparent: true, opacity: 0.8, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
-        const hologram = new THREE.Mesh(new THREE.PlaneGeometry(12, 6), holoMat);
-        hologram.position.set(0, 6, 0);
-        botGroup.add(hologram);
+        const outroTex = new THREE.CanvasTexture(outroCanvas);
+        const outroMat = new THREE.MeshStandardMaterial({map: outroTex, roughness: 0.8});
+        const outroSign = new THREE.Mesh(new THREE.PlaneGeometry(60, 15), outroMat);
+        outroSign.rotation.x = -Math.PI / 2;
+        outroSign.position.set(0, 0.1, 300); // End of desk
+        scene.add(outroSign);
 
 
-        // --- STREAMING_CHUNK:Raycasting & Advanced Float Interaction Math ---
+        // --- STREAMING_CHUNK:Interactive Logic & GSAP Animations ---
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
         
-        let currentState = 'SCROLLING'; // SCROLLING, ANIMATING, ZOOMED, HELP
+        let currentState = 'SCROLLING'; // SCROLLING, ANIMATING, ZOOMED
         let targetCamPos = new THREE.Vector3();
         let targetCamLook = new THREE.Vector3();
         let activeBlueprint = null;
@@ -353,30 +460,27 @@
             // Check Bot Click
             const botIntersects = raycaster.intersectObjects([botBody, visor]);
             if (botIntersects.length > 0) {
-                currentState = 'HELP';
                 helpScreen.classList.add('active');
                 cursor.classList.remove('hover');
                 return;
             }
 
-            // Check Blueprint Click (The Float & Align Interaction)
+            // Check Blueprint Click
             const bpIntersects = raycaster.intersectObjects(blueprints);
             if (bpIntersects.length > 0) {
-                currentState = 'ANIMATING'; // Lock out scroll lerping during GSAP
+                currentState = 'ANIMATING'; 
                 activeBlueprint = bpIntersects[0].object;
                 cursor.classList.remove('hover');
                 
                 const bpX = activeBlueprint.userData.origPos.x;
                 const bpZ = activeBlueprint.userData.origPos.z;
 
-                // 1. Float the blueprint up & straighten it perfectly
+                // 1. Float blueprint up and level it
                 gsap.to(activeBlueprint.position, { y: 15, duration: 1.2, ease: "power2.inOut" });
-                gsap.to(activeBlueprint.rotation, { z: 0, duration: 1.2, ease: "power2.inOut" }); // Flat to camera
+                gsap.to(activeBlueprint.rotation, { x: -Math.PI/2, y: 0, z: 0, duration: 1.2, ease: "power2.inOut" });
 
-                // 2. Move camera to perfectly frame the floating blueprint
-                // Y is bumped from 65 to 85 to zoom out and fit the whole blueprint!
-                gsap.to(camera.position, { x: bpX, y: 85, z: bpZ + 2, duration: 1.2, ease: "power2.inOut" });
-                
+                // 2. Camera swoops directly over it
+                gsap.to(camera.position, { x: bpX, y: 50, z: bpZ + 2, duration: 1.2, ease: "power2.inOut" });
                 gsap.to(cameraLookTarget, { 
                     x: bpX, y: 15, z: bpZ, 
                     duration: 1.2, 
@@ -389,23 +493,23 @@
             }
         });
 
-        // The Back Button (Returns objects to original desk state)
+        // The Back Button 
         backBtn.addEventListener('click', () => {
             backBtn.classList.remove('active');
             currentState = 'ANIMATING';
             
-            // 1. Drop blueprint back to exact desk position and rotation
-            gsap.to(activeBlueprint.position, { y: activeBlueprint.userData.origPos.y, duration: 1.2, ease: "power2.inOut" });
-            gsap.to(activeBlueprint.rotation, { z: activeBlueprint.userData.origRot.z, duration: 1.2, ease: "power2.inOut" });
+            // 1. Drop blueprint back to exact desk position
+            gsap.to(activeBlueprint.position, { y: activeBlueprint.userData.origPos.y, duration: 1.0, ease: "power2.inOut" });
+            gsap.to(activeBlueprint.rotation, { z: activeBlueprint.userData.origRot.z, duration: 1.0, ease: "power2.inOut" });
 
-            // 2. Force scroll handler to calculate where camera SHOULD be right now
+            // 2. Recalculate scroll camera
             window.dispatchEvent(new Event('scroll')); 
 
-            // 3. Move camera back to the scroll track
-            gsap.to(camera.position, { x: targetCamPos.x, y: targetCamPos.y, z: targetCamPos.z, duration: 1.2, ease: "power2.inOut" });
+            // 3. Move camera back to track
+            gsap.to(camera.position, { x: targetCamPos.x, y: targetCamPos.y, z: targetCamPos.z, duration: 1.0, ease: "power2.inOut" });
             gsap.to(cameraLookTarget, { 
                 x: targetCamLook.x, y: targetCamLook.y, z: targetCamLook.z, 
-                duration: 1.2, 
+                duration: 1.0, 
                 ease: "power2.inOut",
                 onComplete: () => {
                     currentState = 'SCROLLING';
@@ -416,20 +520,19 @@
 
         closeHelpBtn.addEventListener('click', () => {
             helpScreen.classList.remove('active');
-            currentState = 'SCROLLING';
         });
 
 
-        // --- STREAMING_CHUNK:Cinematic Scroll Camera Track ---
+        // --- STREAMING_CHUNK:Cinematic Camera Track ---
         let scrollY = 0;
         let maxScroll = 1;
         
-        // Define camera path points spanning across the larger desk
+        // Define path down the desk
         const camPath = [
-            { pos: new THREE.Vector3(0, 45, 30), look: new THREE.Vector3(0, 0, 0) }, // Starts looking at engraving
-            { pos: new THREE.Vector3(30, 40, 120), look: new THREE.Vector3(40, 0, 80) }, // Looks at BP1
-            { pos: new THREE.Vector3(-20, 40, 200), look: new THREE.Vector3(-30, 0, 160) }, // Looks at BP2
-            { pos: new THREE.Vector3(0, 60, 250), look: new THREE.Vector3(0, 0, 150) } // Outro zoom out
+            { pos: new THREE.Vector3(0, 45, 30), look: new THREE.Vector3(0, 0, 0) },        // Engraving
+            { pos: new THREE.Vector3(30, 40, 130), look: new THREE.Vector3(30, 0, 100) },   // BP1
+            { pos: new THREE.Vector3(-30, 40, 230), look: new THREE.Vector3(-30, 0, 200) }, // BP2
+            { pos: new THREE.Vector3(0, 30, 350), look: new THREE.Vector3(0, 0, 300) }      // Outro Sign
         ];
 
         let cameraLookTarget = new THREE.Vector3(0,0,0);
@@ -438,8 +541,7 @@
             maxScroll = document.documentElement.scrollHeight - window.innerHeight;
             scrollY = window.scrollY;
 
-            // Only update targets if we aren't currently inspecting a blueprint
-            if (currentState === 'SCROLLING' || currentState === 'ANIMATING') {
+            if (currentState === 'SCROLLING') {
                 const progress = Math.min(Math.max(scrollY / maxScroll, 0), 1);
                 const segmentProgress = progress * (camPath.length - 1);
                 const index = Math.floor(segmentProgress);
@@ -470,35 +572,38 @@
         cameraLookTarget.copy(targetCamLook);
 
 
-        // --- STREAMING_CHUNK:Main Physics/Animation Loop ---
+        // --- STREAMING_CHUNK:Main Animation Loop ---
         const clock = new THREE.Clock();
 
         function animate() {
             requestAnimationFrame(animate);
             const time = clock.getElapsedTime();
 
-            // Only smoothly lerp camera if we are in SCROLLING state. 
-            // If ANIMATING or ZOOMED, GSAP controls the camera position.
             if (currentState === 'SCROLLING') {
                 camera.position.lerp(targetCamPos, 0.05);
                 cameraLookTarget.lerp(targetCamLook, 0.05);
             }
-            
             camera.lookAt(cameraLookTarget);
 
-            // Floating Bot & Hologram Physics
-            botGroup.position.y = Math.sin(time * 2) * 1.5 + 8;
-            hologram.material.opacity = 0.6 + Math.sin(time * 10) * 0.2; // Flicker effect
+            // Bot Anti-Collision Math
+            // Normally follows slightly ahead/right of camera. 
+            // If zoomed into a blueprint, bot flies up and away.
+            let botTargetX = cameraLookTarget.x + 15;
+            let botTargetY = 12 + Math.sin(time * 2) * 1.5; // Hovering
+            let botTargetZ = cameraLookTarget.z - 15;
+
+            if (currentState === 'ANIMATING' || currentState === 'ZOOMED') {
+                botTargetX = camera.position.x + 35; // Fly way right
+                botTargetY = 30; // Fly up high
+                botTargetZ = camera.position.z - 10;
+            }
+
+            botGroup.position.x += (botTargetX - botGroup.position.x) * 0.03;
+            botGroup.position.y += (botTargetY - botGroup.position.y) * 0.03;
+            botGroup.position.z += (botTargetZ - botGroup.position.z) * 0.03;
             
-            // Scroll the hacker text on the visor
-            visorTex.offset.x -= 0.005;
-            
-            // Bot follows camera track slightly
-            const botTargetX = cameraLookTarget.x + 15;
-            const botTargetZ = cameraLookTarget.z - 20;
-            botGroup.position.x += (botTargetX - botGroup.position.x) * 0.02;
-            botGroup.position.z += (botTargetZ - botGroup.position.z) * 0.02;
-            botGroup.lookAt(camera.position.x, botGroup.position.y, camera.position.z); // Always faces you
+            // Bot always looks at the camera
+            botGroup.lookAt(camera.position);
 
             renderer.render(scene, camera);
         }
