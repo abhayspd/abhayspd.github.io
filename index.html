@@ -7,53 +7,43 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Inter:wght@300;500;800&display=swap" rel="stylesheet">
 
     <style>
         /* Professional Light Theme */
         body { margin: 0; overflow-x: hidden; background-color: #E8E0D5; font-family: 'Inter', sans-serif; scrollbar-width: none; -ms-overflow-style: none; }
         body::-webkit-scrollbar { display: none; }
-        #three-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; pointer-events: none; }
         
-        /* Balanced scroll height for the new desk size */
+        #three-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; pointer-events: none; }
         #scroll-container { position: absolute; top: 0; left: 0; width: 100%; height: 500vh; z-index: 10; }
-
-        #audio-unlock { position: fixed; inset: 0; background: #E8E0D5; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.5s; }
         
         .ui-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20; display: flex; flex-direction: column; justify-content: center; padding: 10%; opacity: 0; transition: opacity 0.5s ease-out; }
         .ui-layer.active { opacity: 1; }
 
         /* Subtle Hint Overlay */
-        #interaction-hint { position: fixed; bottom: 10%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: white; padding: 12px 24px; border-radius: 30px; font-family: 'JetBrains Mono', monospace; font-size: 14px; z-index: 50; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+        #interaction-hint { position: fixed; bottom: 10%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 12px 24px; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 14px; z-index: 50; opacity: 0; pointer-events: none; transition: opacity 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         #interaction-hint.visible { opacity: 1; }
 
         #cursor-hint { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 12px; height: 12px; background: rgba(0,0,0,0.2); border: 2px solid #000; border-radius: 50%; z-index: 30; pointer-events: none; transition: all 0.2s; }
-        #cursor-hint.active { transform: translate(-50%, -50%) scale(2); background: rgba(220, 38, 38, 0.8); border-color: #dc2626; }
+        #cursor-hint.active { transform: translate(-50%, -50%) scale(2.5); background: rgba(37, 99, 235, 0.5); border-color: #2563eb; }
     </style>
 </head>
 <body>
 
-    <div id="audio-unlock">
-        <h1 class="text-4xl font-bold text-slate-800 mb-6 font-mono">Workspace Initialization</h1>
-        <button id="start-btn" class="px-8 py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-bold transition-all shadow-lg">
-            ENTER WORKBENCH
-        </button>
-    </div>
-
     <canvas id="three-canvas"></canvas>
     <div id="scroll-container"></div>
     <div id="cursor-hint"></div>
-    <div id="interaction-hint">CLICK ANYWHERE TO PUT DOWN</div>
+    <div id="interaction-hint">CLICK ANYWHERE TO PLACE ON DESK</div>
 
     <div class="ui-layer active" id="ui-0">
         <div class="max-w-3xl">
             <h1 class="text-7xl font-extrabold tracking-tighter text-slate-900 mb-4 drop-shadow-sm">
                 Abhay Siripudi.
             </h1>
-            <p class="text-2xl text-slate-700 font-medium font-mono border-l-4 border-slate-900 pl-4">
-                Mechanical Engineer.<br>Scroll to navigate the workbench.
+            <p class="text-2xl text-slate-700 font-medium font-mono border-l-4 border-blue-600 pl-4">
+                Mechanical Engineer.<br>Hardware. Kinematics. Control.
             </p>
+            <p class="mt-8 text-sm font-bold text-slate-500 uppercase tracking-widest">Scroll to explore the workbench</p>
         </div>
     </div>
 
@@ -63,40 +53,11 @@
     </div>
 
     <script>
-        // --- AUDIO ENGINE ---
-        let servoSynth;
-        let isAudioReady = false;
-
-        document.getElementById('start-btn').addEventListener('click', async () => {
-            await Tone.start();
-            servoSynth = new Tone.FMSynth({
-                harmonicity: 2, modulationIndex: 5,
-                oscillator: { type: "square" }, modulation: { type: "sawtooth" },
-                envelope: { attack: 0.1, decay: 0.1, sustain: 1, release: 0.2 }
-            }).toDestination();
-            servoSynth.volume.value = -Infinity;
-            servoSynth.triggerAttack(100);
-            
-            isAudioReady = true;
-            document.getElementById('audio-unlock').style.opacity = '0';
-            setTimeout(() => document.getElementById('audio-unlock').remove(), 500);
-        });
-
-        function updateServoSound(speed) {
-            if(!isAudioReady || !servoSynth) return;
-            if(speed > 0.005) {
-                servoSynth.volume.rampTo(-25 + (Math.min(speed, 0.1) * 100), 0.1);
-                servoSynth.frequency.rampTo(100 + (speed * 1500), 0.1);
-            } else {
-                servoSynth.volume.rampTo(-Infinity, 0.2);
-            }
-        }
-
         // --- THREE.JS SETUP ---
         const canvas = document.getElementById('three-canvas');
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xE8E0D5); // Beige professional background
-        scene.fog = new THREE.FogExp2(0xE8E0D5, 0.002);
+        scene.background = new THREE.Color(0xF0EAD6); // Bright beige/wood environment
+        scene.fog = new THREE.FogExp2(0xF0EAD6, 0.0015);
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
         const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
@@ -105,41 +66,46 @@
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-        // Even, Professional Lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        // Realistic Studio Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         scene.add(ambientLight);
         
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(100, 300, 100);
+        dirLight.position.set(150, 300, 150);
         dirLight.castShadow = true;
         dirLight.shadow.mapSize.width = 2048;
         dirLight.shadow.mapSize.height = 2048;
-        dirLight.shadow.camera.left = -300;
-        dirLight.shadow.camera.right = 300;
-        dirLight.shadow.camera.top = 300;
-        dirLight.shadow.camera.bottom = -300;
+        dirLight.shadow.camera.left = -400;
+        dirLight.shadow.camera.right = 400;
+        dirLight.shadow.camera.top = 400;
+        dirLight.shadow.camera.bottom = -400;
+        dirLight.shadow.bias = -0.0005;
         scene.add(dirLight);
 
+        const fillLight = new THREE.DirectionalLight(0xe0eaff, 0.3);
+        fillLight.position.set(-150, 200, -150);
+        scene.add(fillLight);
 
-        // --- PROCEDURAL WOODEN DESK ---
+
+        // --- PROCEDURAL WOODEN DESK & ENGRAVING ---
         function createWoodTexture() {
             const ctxCanvas = document.createElement('canvas');
-            ctxCanvas.width = 1024; ctxCanvas.height = 1024;
+            ctxCanvas.width = 2048; ctxCanvas.height = 2048;
             const ctx = ctxCanvas.getContext('2d');
             
-            // Base Wood Color
-            ctx.fillStyle = '#8B5A2B'; 
-            ctx.fillRect(0, 0, 1024, 1024);
+            // Base Wood Color (Oak/Birch)
+            ctx.fillStyle = '#C19A6B'; 
+            ctx.fillRect(0, 0, 2048, 2048);
             
-            // Procedural Grain
-            ctx.fillStyle = 'rgba(92, 64, 51, 0.15)';
-            for(let i=0; i<400; i++) {
+            // Fine Procedural Grain
+            ctx.fillStyle = 'rgba(101, 67, 33, 0.08)';
+            for(let i=0; i<2000; i++) {
                 ctx.beginPath();
-                let x = Math.random() * 1024;
-                let y = Math.random() * 1024;
-                let w = Math.random() * 300 + 50;
-                let h = Math.random() * 5 + 1;
-                ctx.ellipse(x, y, w, h, Math.random() * 0.1, 0, Math.PI * 2);
+                let x = Math.random() * 2048;
+                let y = Math.random() * 2048;
+                let w = Math.random() * 400 + 100;
+                let h = Math.random() * 3 + 1;
+                ctx.ellipse(x, y, w, h, Math.random() * 0.05, 0, Math.PI * 2);
                 ctx.fill();
             }
             const tex = new THREE.CanvasTexture(ctxCanvas);
@@ -148,35 +114,44 @@
             return tex;
         }
 
-        const deskMat = new THREE.MeshStandardMaterial({ map: createWoodTexture(), roughness: 0.9, metalness: 0.05 });
-        const desk = new THREE.Mesh(new THREE.PlaneGeometry(800, 800), deskMat); // Smaller, manageable desk
+        const deskMat = new THREE.MeshStandardMaterial({ map: createWoodTexture(), roughness: 0.8, metalness: 0.1 });
+        const desk = new THREE.Mesh(new THREE.PlaneGeometry(1200, 1200), deskMat);
         desk.rotation.x = -Math.PI / 2;
         desk.receiveShadow = true;
         scene.add(desk);
 
-        // Engraved Name
+        // Actual 3D Engraved Plaque
         function createEngraving() {
+            const group = new THREE.Group();
+            
+            // Metal Plaque
+            const plaqueGeo = new THREE.BoxGeometry(180, 4, 50);
+            const plaqueMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.4, metalness: 0.8 });
+            const plaque = new THREE.Mesh(plaqueGeo, plaqueMat);
+            plaque.position.y = 2;
+            plaque.castShadow = true;
+            plaque.receiveShadow = true;
+            group.add(plaque);
+
+            // Generate Canvas text to use as a bump/color map for realism
             const ctxCanvas = document.createElement('canvas');
             ctxCanvas.width = 1024; ctxCanvas.height = 256;
             const ctx = ctxCanvas.getContext('2d');
-            ctx.fillStyle = '#8B5A2B'; ctx.fillRect(0, 0, 1024, 256); // Match wood base
-            
-            // Engraving effect
-            ctx.font = '900 80px "Inter"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillStyle = '#4A3018'; // Darker inset
+            ctx.fillStyle = '#111111'; ctx.fillRect(0, 0, 1024, 256);
+            ctx.font = '900 85px "Inter"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#DDDDDD';
             ctx.fillText('ABHAY SIRIPUDI', 512, 128);
             
-            // Highlight for depth
-            ctx.fillStyle = 'rgba(255,255,255,0.1)';
-            ctx.fillText('ABHAY SIRIPUDI', 512, 131);
+            const tex = new THREE.CanvasTexture(ctxCanvas);
+            const textPlane = new THREE.Mesh(new THREE.PlaneGeometry(175, 45), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5, metalness: 0.9 }));
+            textPlane.rotation.x = -Math.PI / 2;
+            textPlane.position.y = 4.1;
+            group.add(textPlane);
 
-            return new THREE.CanvasTexture(ctxCanvas);
+            return group;
         }
-        const engMat = new THREE.MeshStandardMaterial({ map: createEngraving(), roughness: 0.9 });
-        const engraving = new THREE.Mesh(new THREE.PlaneGeometry(160, 40), engMat);
-        engraving.rotation.x = -Math.PI / 2;
-        engraving.position.set(0, 0.2, -50);
-        engraving.receiveShadow = true;
+        const engraving = createEngraving();
+        engraving.position.set(0, 0, -40);
         scene.add(engraving);
 
 
@@ -184,190 +159,231 @@
         const blueprints = [];
         function createDetailedBlueprint(title, desc) {
             const ctxCanvas = document.createElement('canvas');
-            ctxCanvas.width = 1024; ctxCanvas.height = 768; // High res A4 landscape proportion
+            ctxCanvas.width = 1024; ctxCanvas.height = 1024; // Square aspect for easier reading when held
             const ctx = ctxCanvas.getContext('2d');
             
             // Blueprint Blue Background
-            ctx.fillStyle = '#023e8a'; ctx.fillRect(0, 0, 1024, 768);
+            ctx.fillStyle = '#0f172a'; ctx.fillRect(0, 0, 1024, 1024); // Dark slate
             
             // Grid
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'; ctx.lineWidth = 2;
-            for(let i=0; i<=1024; i+=32) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 768); ctx.stroke(); }
-            for(let i=0; i<=768; i+=32) { ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(1024, i); ctx.stroke(); }
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'; ctx.lineWidth = 2;
+            for(let i=0; i<=1024; i+=32) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 1024); ctx.stroke(); }
+            for(let i=0; i<=1024; i+=32) { ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(1024, i); ctx.stroke(); }
             
-            // Border
-            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 10; ctx.strokeRect(40, 40, 944, 688);
+            // Border & Header
+            ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 8; ctx.strokeRect(40, 40, 944, 944);
+            ctx.fillStyle = '#3b82f6'; ctx.fillRect(40, 40, 944, 100);
             
-            // Text
+            // Title
             ctx.fillStyle = '#ffffff'; 
-            ctx.font = 'bold 70px "JetBrains Mono"';
-            ctx.fillText(title, 80, 160);
+            ctx.font = 'bold 60px "JetBrains Mono"'; ctx.textAlign = 'left';
+            ctx.fillText(title, 80, 110);
             
-            ctx.font = '30px "JetBrains Mono"';
-            // Simple text wrapping
-            const words = desc.split(' '); let line = ''; let y = 260;
+            // Description Body
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = '32px "Inter"';
+            const words = desc.split(' '); let line = ''; let y = 220;
             for(let n = 0; n < words.length; n++) {
                 const testLine = line + words[n] + ' ';
                 const metrics = ctx.measureText(testLine);
                 if (metrics.width > 860 && n > 0) {
                     ctx.fillText(line, 80, y);
                     line = words[n] + ' ';
-                    y += 45;
+                    y += 50;
                 } else { line = testLine; }
             }
             ctx.fillText(line, 80, y);
-            
-            // Decorative CAD lines
-            ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 4;
-            ctx.beginPath(); ctx.arc(800, 550, 100, 0, Math.PI*2); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(700, 550); ctx.lineTo(900, 550); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(800, 450); ctx.lineTo(800, 650); ctx.stroke();
+
+            // Mock CAD Drawing details
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)'; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.arc(512, 700, 150, 0, Math.PI*2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(512, 700, 100, 0, Math.PI*2); ctx.stroke();
+            ctx.setLineDash([10, 15]);
+            ctx.beginPath(); ctx.moveTo(200, 700); ctx.lineTo(824, 700); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(512, 400); ctx.lineTo(512, 950); ctx.stroke();
 
             return new THREE.CanvasTexture(ctxCanvas);
         }
 
-        const bpGeo = new THREE.PlaneGeometry(60, 45); // Larger, A4 sized blueprints
+        const bpGeo = new THREE.PlaneGeometry(50, 50);
         
-        // BP1: UAV
-        const bp1 = new THREE.Mesh(bpGeo, new THREE.MeshStandardMaterial({ map: createDetailedBlueprint('UAV DIFF. MECH', 'Mechanical kinematic design for fixed-wing stabilization. Replaces dual servos with a single robust differential mechanical linkage. Designed for high-torque applications.'), side: THREE.DoubleSide }));
-        bp1.rotation.x = -Math.PI / 2; bp1.rotation.z = Math.PI / 12;
-        bp1.position.set(90, 0.2, 100);
+        // BP1: Placed South-East (+X, +Z)
+        const bp1 = new THREE.Mesh(bpGeo, new THREE.MeshStandardMaterial({ map: createDetailedBlueprint('UAV DIFF. MECH', 'Mechanical kinematic design for fixed-wing stabilization. Replaces dual servos with a single robust differential mechanical linkage. Designed for high-torque applications. Patent pending kinematics.'), side: THREE.DoubleSide }));
+        bp1.rotation.x = -Math.PI / 2; bp1.rotation.z = Math.PI / 8;
+        bp1.position.set(120, 0.2, 100);
         bp1.receiveShadow = true; bp1.castShadow = true;
         scene.add(bp1); blueprints.push(bp1);
 
-        // BP2: Sensor Fusion
-        const bp2 = new THREE.Mesh(bpGeo, new THREE.MeshStandardMaterial({ map: createDetailedBlueprint('SENSOR FUSION', 'C++ Implementation of a Kalman filter integrating MPU6050 accelerometer and gyroscope data. Ensures rigid mechanical stability under dynamic loads.'), side: THREE.DoubleSide }));
-        bp2.rotation.x = -Math.PI / 2; bp2.rotation.z = -Math.PI / 10;
-        bp2.position.set(-90, 0.2, 220);
+        // BP2: Placed South-West (-X, +Z)
+        const bp2 = new THREE.Mesh(bpGeo, new THREE.MeshStandardMaterial({ map: createDetailedBlueprint('SENSOR FUSION & IK', 'C++ Implementation of Kalman filter integrating MPU6050 accelerometer data. Also features custom Inverse Kinematics math for 6-DOF robotic manipulation.'), side: THREE.DoubleSide }));
+        bp2.rotation.x = -Math.PI / 2; bp2.rotation.z = -Math.PI / 12;
+        bp2.position.set(-140, 0.2, 280);
         bp2.receiveShadow = true; bp2.castShadow = true;
         scene.add(bp2); blueprints.push(bp2);
 
 
-        // --- MASSIVE SCALED COMPONENTS ---
-        const silverMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.9, roughness: 0.2 });
-        const blackMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.7 });
-        const goldMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 1.0, roughness: 0.2 });
+        // --- PROCEDURAL HIGH-POLY HARDWARE COMPONENTS ---
+        
+        const matPlastic = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.7, metalness: 0.1 });
+        const matMetal = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.3, metalness: 0.9 });
+        const matGold = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.2, metalness: 1.0 });
+        const matPCBBlue = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.9, metalness: 0.1 });
+        const matPCBRed = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.9, metalness: 0.1 });
 
-        // 1. Scaled Up Arduino Uno
-        const arduino = new THREE.Group();
-        const aBoard = new THREE.Mesh(new THREE.BoxGeometry(30, 2, 42), new THREE.MeshStandardMaterial({ color: 0x0284c7 })); // Blue PCB
-        aBoard.position.y = 1; aBoard.castShadow = true; arduino.add(aBoard);
-        const aUSB = new THREE.Mesh(new THREE.BoxGeometry(8, 6, 9), silverMat);
-        aUSB.position.set(-10, 4, 16); aUSB.castShadow = true; arduino.add(aUSB);
-        const aChip = new THREE.Mesh(new THREE.BoxGeometry(9, 2.5, 21), blackMat);
-        aChip.position.set(6, 2, -3); aChip.castShadow = true; arduino.add(aChip);
-        arduino.position.set(-80, 0, 80); arduino.rotation.y = Math.PI / 5;
+        // 1. High-Poly Arduino Uno
+        function createArduino() {
+            const group = new THREE.Group();
+            
+            // PCB Shape (Extruded for realism)
+            const boardShape = new THREE.Shape();
+            boardShape.moveTo(0, 0); boardShape.lineTo(68, 0); boardShape.lineTo(68, 53);
+            boardShape.lineTo(65, 53); boardShape.lineTo(62, 50); boardShape.lineTo(0, 50); boardShape.lineTo(0, 0);
+            const boardGeo = new THREE.ExtrudeGeometry(boardShape, { depth: 1.5, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.2, bevelThickness: 0.2 });
+            const pcb = new THREE.Mesh(boardGeo, matPCBBlue);
+            pcb.rotation.x = Math.PI / 2;
+            pcb.position.set(-34, 1.5, -25);
+            pcb.castShadow = true; pcb.receiveShadow = true;
+            group.add(pcb);
+
+            // ATmega Chip
+            const chip = new THREE.Mesh(new THREE.BoxGeometry(35, 3, 9), matPlastic);
+            chip.position.set(10, 3, 5); chip.castShadow = true; group.add(chip);
+            // Pins for chip
+            for(let i=0; i<14; i++) {
+                const pin1 = new THREE.Mesh(new THREE.BoxGeometry(1, 4, 1), matMetal);
+                pin1.position.set(-6 + i*2.5, 1.5, 9.5); group.add(pin1);
+                const pin2 = new THREE.Mesh(new THREE.BoxGeometry(1, 4, 1), matMetal);
+                pin2.position.set(-6 + i*2.5, 1.5, 0.5); group.add(pin2);
+            }
+
+            // USB & Power
+            const usb = new THREE.Mesh(new THREE.BoxGeometry(12, 11, 16), matMetal);
+            usb.position.set(-28, 6.5, -15); usb.castShadow = true; group.add(usb);
+            const pwr = new THREE.Mesh(new THREE.BoxGeometry(9, 11, 13), matPlastic);
+            pwr.position.set(-28, 6.5, 15); pwr.castShadow = true; group.add(pwr);
+
+            // Headers
+            const header1 = new THREE.Mesh(new THREE.BoxGeometry(40, 6, 2.5), matPlastic);
+            header1.position.set(10, 4.5, -23); group.add(header1);
+            
+            group.scale.set(0.6, 0.6, 0.6); // Scale down to fit desk better
+            return group;
+        }
+        const arduino = createArduino();
+        arduino.position.set(-80, 0, 80);
+        arduino.rotation.y = Math.PI / 6;
         scene.add(arduino);
 
-        // 2. Scaled Up MPU6050 Sensor
-        const mpu = new THREE.Group();
-        const mBoard = new THREE.Mesh(new THREE.BoxGeometry(16, 1, 16), new THREE.MeshStandardMaterial({ color: 0x0ea5e9 }));
-        mBoard.position.y = 0.5; mBoard.castShadow = true; mpu.add(mBoard);
-        const mChip = new THREE.Mesh(new THREE.BoxGeometry(6, 1.5, 6), blackMat);
-        mChip.position.y = 1.25; mpu.add(mChip);
-        for(let i=0; i<8; i++) {
-            const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 6), goldMat);
-            pin.position.set(-7, 3, -5 + (i*1.4)); mpu.add(pin);
+        // 2. High-Poly Power Drill
+        function createDrill() {
+            const group = new THREE.Group();
+            
+            // Battery Pack
+            const battery = new THREE.Mesh(new THREE.BoxGeometry(18, 8, 12), matPlastic);
+            battery.position.set(0, 4, 0); battery.castShadow = true; group.add(battery);
+
+            // Handle (Extruded profile)
+            const handleShape = new THREE.Shape();
+            handleShape.moveTo(0,0); handleShape.lineTo(6,0); handleShape.lineTo(10,25); handleShape.lineTo(2,25); handleShape.lineTo(0,0);
+            const handle = new THREE.Mesh(new THREE.ExtrudeGeometry(handleShape, { depth: 8, bevelEnabled: true, bevelSize: 1, bevelThickness: 1 }), matPlastic);
+            handle.position.set(-4, 8, -4); handle.castShadow = true; group.add(handle);
+
+            // Motor Housing (Yellow)
+            const motorMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.5 });
+            const motor = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 28, 32), motorMat);
+            motor.rotation.z = Math.PI / 2; motor.position.set(4, 30, 0); motor.castShadow = true; group.add(motor);
+
+            // Chuck (Lathe Geometry for true circular steps)
+            const chuckPoints = [];
+            for ( let i = 0; i < 10; i ++ ) chuckPoints.push( new THREE.Vector2( Math.sin( i * 0.2 ) * 3 + 2, ( i - 5 ) * 1.5 ) );
+            const chuck = new THREE.Mesh(new THREE.LatheGeometry(chuckPoints, 32), matMetal);
+            chuck.rotation.z = Math.PI / 2; chuck.position.set(24, 30, 0); chuck.castShadow = true; group.add(chuck);
+
+            return group;
         }
-        mpu.position.set(130, 0, 160); mpu.rotation.y = -Math.PI / 4;
-        scene.add(mpu);
-
-        // 3. Scaled Up L298N Motor Driver
-        const l298n = new THREE.Group();
-        const lBoard = new THREE.Mesh(new THREE.BoxGeometry(30, 2, 30), new THREE.MeshStandardMaterial({ color: 0xdc2626 })); // Red PCB
-        lBoard.position.y = 1; lBoard.castShadow = true; l298n.add(lBoard);
-        const heatSink = new THREE.Mesh(new THREE.BoxGeometry(26, 16, 6), blackMat);
-        heatSink.position.set(0, 9, -10); heatSink.castShadow = true; l298n.add(heatSink);
-        const caps = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 10, 16), blackMat);
-        caps.position.set(-8, 6, 2); l298n.add(caps);
-        l298n.position.set(-130, 0, 180); l298n.rotation.y = Math.PI / 3;
-        scene.add(l298n);
-
-        // 4. Scaled Up Power Drill (Resting flat)
-        const drill = new THREE.Group();
-        const dBody = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 24, 32), new THREE.MeshStandardMaterial({ color: 0xf59e0b })); // Yellow drill
-        dBody.rotation.z = Math.PI / 2; dBody.position.y = 5; dBody.castShadow = true; drill.add(dBody);
-        const dChuck = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 5, 10, 32), silverMat);
-        dChuck.rotation.z = -Math.PI / 2; dChuck.position.set(17, 5, 0); dChuck.castShadow = true; drill.add(dChuck);
-        const dHandle = new THREE.Mesh(new THREE.BoxGeometry(6, 18, 6), blackMat);
-        dHandle.rotation.z = Math.PI / 6; dHandle.position.set(-4, 5, 9); dHandle.castShadow = true; drill.add(dHandle);
-        drill.position.set(140, 0, 40); drill.rotation.y = -Math.PI / 6; drill.rotation.x = Math.PI / 2; // Lie flat
+        const drill = createDrill();
+        drill.rotation.x = Math.PI / 2; // Lay flat on table
+        drill.rotation.z = -Math.PI / 4;
+        drill.position.set(160, 4, 40); // Top right of desk
         scene.add(drill);
 
 
-        // --- HIGH POLY 6-DOF ROBOTIC ARM & ROVER ---
+        // --- HIGH-POLY 6-DOF ROBOTIC ARM & ROVER ---
         const roverGroup = new THREE.Group();
         scene.add(roverGroup);
 
-        // Materials matching your image exactly
-        const redMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.4 }); // Red structural links
-        const greyMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.5 }); // Grey base/grippers
-        const servoMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 }); // Black servos
-        const blueMat = new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.3 }); // Blue micro servo
+        const redMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.3, metalness: 0.1 });
+        const greyMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.5 });
+        const servoMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
 
-        // Rover Base (Moving platform)
-        const chassis = new THREE.Mesh(new THREE.BoxGeometry(24, 4, 32), greyMat);
-        chassis.position.y = 4; chassis.castShadow = true; roverGroup.add(chassis);
+        // High-Poly Rover Base
+        const chassisShape = new THREE.Shape();
+        chassisShape.moveTo(-15, -20); chassisShape.lineTo(15, -20); chassisShape.lineTo(20, 0); chassisShape.lineTo(15, 20); chassisShape.lineTo(-15, 20); chassisShape.lineTo(-15, -20);
+        const chassis = new THREE.Mesh(new THREE.ExtrudeGeometry(chassisShape, { depth: 6, bevelEnabled: true, bevelSize: 1 }), greyMat);
+        chassis.rotation.x = Math.PI / 2; chassis.position.set(0, 8, 0); chassis.castShadow = true; roverGroup.add(chassis);
+        
+        // Detailed Wheels
         const wheels = [];
         for(let i=0; i<4; i++) {
-            const w = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 3, 32), servoMat);
-            w.rotation.z = Math.PI / 2; w.position.set(i<2?13:-13, 4, i%2===0?12:-12);
-            w.castShadow = true; roverGroup.add(w); wheels.push(w);
+            const wGroup = new THREE.Group();
+            const wTire = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 4, 32), matPlastic);
+            wTire.rotation.z = Math.PI / 2; wTire.castShadow = true; wGroup.add(wTire);
+            const wHub = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 4.2, 16), matMetal);
+            wHub.rotation.z = Math.PI / 2; wGroup.add(wHub);
+            wGroup.position.set(i<2?17:-17, 5, i%2===0?15:-15);
+            roverGroup.add(wGroup); wheels.push(wGroup);
         }
 
-        // Arm Base (Grey Cylinder)
-        const armBase = new THREE.Mesh(new THREE.CylinderGeometry(8, 8, 8, 64), greyMat);
-        armBase.position.set(0, 10, 0); armBase.castShadow = true; roverGroup.add(armBase);
+        // --- Arm Joints ---
+        // Base Yaw
+        const joint1_yaw = new THREE.Group(); joint1_yaw.position.set(0, 10, 0); roverGroup.add(joint1_yaw);
+        const baseCyl = new THREE.Mesh(new THREE.CylinderGeometry(8, 10, 6, 64), servoMat);
+        baseCyl.position.y = 3; baseCyl.castShadow = true; joint1_yaw.add(baseCyl);
 
-        // Joint 1: Yaw
-        const joint1_yaw = new THREE.Group(); joint1_yaw.position.set(0, 14, 0); roverGroup.add(joint1_yaw);
-        const yawServo = new THREE.Mesh(new THREE.BoxGeometry(6, 6, 6), servoMat); joint1_yaw.add(yawServo);
+        // Shoulder Pitch
+        const joint2_shoulder = new THREE.Group(); joint2_shoulder.position.set(0, 8, 0); joint1_yaw.add(joint2_shoulder);
+        const shoulderBracket = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 10, 32), redMat);
+        shoulderBracket.rotation.z = Math.PI/2; shoulderBracket.castShadow = true; joint2_shoulder.add(shoulderBracket);
+        const bicep = new THREE.Mesh(new THREE.BoxGeometry(8, 28, 6), redMat);
+        bicep.position.set(0, 14, 0); bicep.castShadow = true; joint2_shoulder.add(bicep);
 
-        // Joint 2: Shoulder Pitch (Red)
-        const joint2_shoulder = new THREE.Group(); joint2_shoulder.position.set(0, 3, 0); joint1_yaw.add(joint2_shoulder);
-        const shoulderHub = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 8, 32), redMat);
-        shoulderHub.rotation.z = Math.PI/2; shoulderHub.castShadow = true; joint2_shoulder.add(shoulderHub);
-        const bicep = new THREE.Mesh(new THREE.BoxGeometry(6, 24, 6), redMat);
-        bicep.position.set(0, 12, 0); bicep.castShadow = true; joint2_shoulder.add(bicep);
-        const shoulderServo = new THREE.Mesh(new THREE.BoxGeometry(7, 8, 8), servoMat);
-        shoulderServo.position.set(4, 6, 0); joint2_shoulder.add(shoulderServo);
+        // Elbow Pitch
+        const joint3_elbow = new THREE.Group(); joint3_elbow.position.set(0, 28, 0); joint2_shoulder.add(joint3_elbow);
+        const elbowBracket = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 8, 32), redMat);
+        elbowBracket.rotation.z = Math.PI/2; elbowBracket.castShadow = true; joint3_elbow.add(elbowBracket);
+        const forearm = new THREE.Mesh(new THREE.BoxGeometry(6, 22, 5), redMat);
+        forearm.position.set(0, 11, 0); forearm.castShadow = true; joint3_elbow.add(forearm);
 
-        // Joint 3: Elbow Pitch (Red)
-        const joint3_elbow = new THREE.Group(); joint3_elbow.position.set(0, 24, 0); joint2_shoulder.add(joint3_elbow);
-        const elbowHub = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 7, 32), redMat);
-        elbowHub.rotation.z = Math.PI/2; elbowHub.castShadow = true; joint3_elbow.add(elbowHub);
-        const forearm = new THREE.Mesh(new THREE.BoxGeometry(5, 20, 5), redMat);
-        forearm.position.set(0, 10, 0); forearm.castShadow = true; joint3_elbow.add(forearm);
-        const elbowServo = new THREE.Mesh(new THREE.BoxGeometry(6, 7, 7), servoMat);
-        elbowServo.position.set(-3.5, 5, 0); joint3_elbow.add(elbowServo);
+        // Wrist Pitch
+        const joint4_wristPitch = new THREE.Group(); joint4_wristPitch.position.set(0, 22, 0); joint3_elbow.add(joint4_wristPitch);
+        const wristCyl = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 7, 32), servoMat);
+        wristCyl.rotation.z = Math.PI/2; wristCyl.castShadow = true; joint4_wristPitch.add(wristCyl);
 
-        // Joint 4: Wrist Pitch
-        const joint4_wrist = new THREE.Group(); joint4_wrist.position.set(0, 20, 0); joint3_elbow.add(joint4_wrist);
-        const wristHub = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 6, 32), redMat);
-        wristHub.rotation.z = Math.PI/2; wristHub.castShadow = true; joint4_wrist.add(wristHub);
+        // Wrist Roll & Gripper Base
+        const joint5_wristRoll = new THREE.Group(); joint5_wristRoll.position.set(0, 4, 0); joint4_wristPitch.add(joint5_wristRoll);
+        const gripperBase = new THREE.Mesh(new THREE.BoxGeometry(8, 4, 12), greyMat);
+        gripperBase.position.y = 2; gripperBase.castShadow = true; joint5_wristRoll.add(gripperBase);
 
-        // Joint 5: Wrist Roll (Blue micro servo)
-        const joint5_roll = new THREE.Group(); joint5_roll.position.set(0, 3, 0); joint4_wrist.add(joint5_roll);
-        const rollServo = new THREE.Mesh(new THREE.BoxGeometry(4, 6, 4), blueMat);
-        rollServo.position.y = 3; rollServo.castShadow = true; joint5_roll.add(rollServo);
-
-        // Joint 6: Gripper (Grey claws)
-        const joint6_gripper = new THREE.Group(); joint6_gripper.position.set(0, 6, 0); joint5_roll.add(joint6_gripper);
-        const clawL = new THREE.Mesh(new THREE.BoxGeometry(2, 10, 3), greyMat);
-        clawL.position.set(3, 5, 0); clawL.rotation.z = Math.PI/10; clawL.castShadow = true; joint6_gripper.add(clawL);
-        const clawR = new THREE.Mesh(new THREE.BoxGeometry(2, 10, 3), greyMat);
-        clawR.position.set(-3, 5, 0); clawR.rotation.z = -Math.PI/10; clawR.castShadow = true; joint6_gripper.add(clawR);
+        // Claws
+        const clawShape = new THREE.Shape();
+        clawShape.moveTo(0,0); clawShape.lineTo(4,0); clawShape.lineTo(4,12); clawShape.lineTo(1,16); clawShape.lineTo(0,16); clawShape.lineTo(0,0);
+        const clawGeo = new THREE.ExtrudeGeometry(clawShape, { depth: 2, bevelEnabled: true, bevelSize: 0.5 });
+        
+        const clawL = new THREE.Mesh(clawGeo, greyMat);
+        clawL.position.set(3, 4, -1); clawL.rotation.y = Math.PI/2; clawL.castShadow = true; joint5_wristRoll.add(clawL);
+        
+        const clawR = new THREE.Mesh(clawGeo, greyMat);
+        clawR.position.set(-3, 4, 1); clawR.rotation.y = -Math.PI/2; clawR.castShadow = true; joint5_wristRoll.add(clawR);
 
         // Default Pose
         joint2_shoulder.rotation.x = Math.PI / 4;
-        joint3_elbow.rotation.x = Math.PI / 3;
-        joint4_wrist.rotation.x = Math.PI / 4;
+        joint3_elbow.rotation.x = Math.PI / 2.5;
+        joint4_wristPitch.rotation.x = Math.PI / 4;
         roverGroup.position.set(0, 0, 20); 
 
 
         // --- INTERACTION & CINEMATIC STATE MACHINE ---
-        // STATES: SCROLL -> DRIVE_TO -> REACH -> GRAB -> LIFT -> VIEWING -> RETURN -> RELEASE -> SCROLL
-        let appState = 'SCROLL'; 
+        let appState = 'SCROLL'; // SCROLL, DRIVE, GRAB, LIFT, VIEW, RETURN, RELEASE
         let targetBP = null;
         let bpOriginalPos = new THREE.Vector3();
         let bpOriginalQuat = new THREE.Quaternion();
@@ -409,11 +425,11 @@
                     
                     document.body.style.overflow = 'hidden'; // Lock scroll
                     cursorHint.classList.remove('active');
-                    appState = 'DRIVE_TO';
+                    appState = 'DRIVE';
                     stateTimer = 0;
                 }
             } 
-            else if (appState === 'VIEWING') {
+            else if (appState === 'VIEW') {
                 interactHint.classList.remove('visible');
                 appState = 'RETURN';
                 stateTimer = 0;
@@ -421,11 +437,12 @@
         });
 
         // --- CAMERA & SCROLL WAYPOINTS ---
+        // South-East, then South-West panning
         const waypoints = [
-            { cam: new THREE.Vector3(0, 100, 120), look: new THREE.Vector3(0,0,-20), rover: new THREE.Vector3(0, 0, 20) }, // Intro
-            { cam: new THREE.Vector3(90, 80, 180), look: new THREE.Vector3(90,0,100), rover: new THREE.Vector3(90, 0, 150) }, // BP1
-            { cam: new THREE.Vector3(-90, 80, 300), look: new THREE.Vector3(-90,0,220), rover: new THREE.Vector3(-90, 0, 270) }, // BP2
-            { cam: new THREE.Vector3(150, 60, 450), look: new THREE.Vector3(0,0,350), rover: new THREE.Vector3(0, 0, 350) } // End side view
+            { cam: new THREE.Vector3(0, 120, 80), look: new THREE.Vector3(0,0,-20), rover: new THREE.Vector3(0, 0, 20) }, // Intro
+            { cam: new THREE.Vector3(120, 100, 200), look: new THREE.Vector3(120,0,100), rover: new THREE.Vector3(120, 0, 150) }, // SE BP1
+            { cam: new THREE.Vector3(-140, 100, 380), look: new THREE.Vector3(-140,0,280), rover: new THREE.Vector3(-140, 0, 330) }, // SW BP2
+            { cam: new THREE.Vector3(0, 60, 500), look: new THREE.Vector3(0,0,380), rover: new THREE.Vector3(0, 0, 380) } // Outro Wave
         ];
 
         let scrollProgress = 0;
@@ -454,14 +471,14 @@
         }
 
 
-        // --- ANIMATION LOOP & ROBUST KINEMATICS ---
+        // --- ANIMATION LOOP & KINEMATICS ---
         const clock = new THREE.Clock();
         const currentCamPos = waypoints[0].cam.clone();
         const currentCamLook = waypoints[0].look.clone();
         
         let targetRoverPos = new THREE.Vector3();
         let targetRoverRot = 0;
-        let tYaw = 0, tShoulder = Math.PI/4, tElbow = Math.PI/3, tWrist = Math.PI/4;
+        let tYaw = 0, tShoulder = Math.PI/4, tElbow = Math.PI/2.5, tWristP = Math.PI/4, tWristR = 0, tClaw = 0;
 
         function lerpAngle(a, b, t) {
             let diff = b - a;
@@ -474,7 +491,6 @@
             requestAnimationFrame(animate);
             const delta = Math.min(clock.getDelta(), 0.1);
             const time = clock.getElapsedTime();
-            let totalSpeed = 0;
 
             if (appState === 'SCROLL') {
                 const state = getScrollState(scrollProgress);
@@ -488,44 +504,51 @@
 
                 tYaw = 0;
                 tShoulder = Math.PI/4 + Math.sin(time)*0.05;
-                tElbow = Math.PI/3 + Math.cos(time)*0.05;
-                tWrist = Math.PI/4;
+                tElbow = Math.PI/2.5 + Math.cos(time)*0.05;
+                tWristP = Math.PI/4;
+                tClaw = 0.5; // Open
 
-                // Final Wave
+                // Final Wave Goodbye
                 if(scrollProgress > 0.95) {
                     const dirToCam = new THREE.Vector3().subVectors(camera.position, roverGroup.position).normalize();
                     targetRoverRot = Math.atan2(dirToCam.x, dirToCam.z);
                     tShoulder = -Math.PI/6; 
-                    tElbow = Math.PI/6;
-                    tWrist = -Math.PI/2 + Math.sin(time * 10) * 0.5; // Wave
+                    tElbow = Math.PI/8;
+                    tWristP = -Math.PI/4;
+                    tWristR = Math.sin(time * 10) * 0.5; // Wave Roll
+                } else {
+                    tWristR = 0;
                 }
 
             } else {
-                // All interaction states override the arm and rover position
                 stateTimer += delta;
                 
-                // Position rover perfectly 40 units "south" of blueprint for grabbing
-                const grabPos = new THREE.Vector3(bpOriginalPos.x, 0, bpOriginalPos.z + 40);
+                // Position rover exactly 35 units away from blueprint to grab corner
+                const grabPos = new THREE.Vector3(bpOriginalPos.x, 0, bpOriginalPos.z + 35);
                 targetRoverPos.copy(grabPos);
                 targetRoverRot = Math.atan2(bpOriginalPos.x - roverGroup.position.x, bpOriginalPos.z - roverGroup.position.z);
 
-                if (appState === 'DRIVE_TO') {
-                    tShoulder = Math.PI/4; tElbow = Math.PI/3; tWrist = Math.PI/4;
-                    // Wait for rover to arrive
-                    if (roverGroup.position.distanceTo(grabPos) < 1.0 && stateTimer > 1.5) {
-                        appState = 'REACH'; stateTimer = 0;
+                if (appState === 'DRIVE') {
+                    tShoulder = Math.PI/4; tElbow = Math.PI/2.5; tClaw = 0.5;
+                    if (roverGroup.position.distanceTo(grabPos) < 1.0 && stateTimer > 1.0) {
+                        appState = 'GRAB'; stateTimer = 0;
                     }
                 } 
-                else if (appState === 'REACH') {
-                    // Arm bends down to touch table
-                    tShoulder = Math.PI / 2.5; 
-                    tElbow = -Math.PI / 4;
-                    tWrist = -Math.PI / 2;
-                    if (stateTimer > 1.5) {
-                        // Physically attach to gripper
-                        joint6_gripper.attach(targetBP);
-                        // Adjust local position so it looks grabbed by edge
-                        targetBP.position.set(0, 10, 0); 
+                else if (appState === 'GRAB') {
+                    // Arm dives to table level
+                    tShoulder = Math.PI / 2.3; 
+                    tElbow = -Math.PI / 6;
+                    tWristP = -Math.PI / 2.2;
+                    
+                    if (stateTimer > 1.5 && stateTimer < 2.0) {
+                        tClaw = 0; // Snap claws shut
+                    }
+
+                    if (stateTimer > 2.0) {
+                        joint5_wristRoll.attach(targetBP); // Physically lock paper to wrist
+                        // Align paper relative to gripper so it holds the edge naturally
+                        targetBP.position.set(0, 10, -10); 
+                        targetBP.rotation.set(-Math.PI/2, 0, 0);
                         appState = 'LIFT'; stateTimer = 0;
                     }
                 } 
@@ -534,83 +557,79 @@
                     const dirToCam = new THREE.Vector3().subVectors(camera.position, roverGroup.position).normalize();
                     targetRoverRot = Math.atan2(dirToCam.x, dirToCam.z);
                     
-                    // Lift arm high
+                    // Lift arm extremely high
                     tShoulder = -Math.PI / 8;
-                    tElbow = Math.PI / 2;
-                    tWrist = -Math.PI / 4;
+                    tElbow = Math.PI / 1.5;
+                    tWristP = -Math.PI / 3;
 
-                    // Force blueprint to face camera perfectly
+                    // Mathematics: Force the blueprint to perfectly align with camera lens
                     scene.attach(targetBP);
                     targetBP.quaternion.slerp(camera.quaternion, 0.1);
-                    joint6_gripper.attach(targetBP);
+                    joint5_wristRoll.attach(targetBP);
 
-                    if (stateTimer > 2.0) {
-                        appState = 'VIEWING';
+                    if (stateTimer > 2.5) {
+                        appState = 'VIEW';
                         interactHint.classList.add('visible');
                     }
                 } 
-                else if (appState === 'VIEWING') {
-                    // Hold steady
-                    tShoulder = -Math.PI / 8; tElbow = Math.PI / 2; tWrist = -Math.PI / 4;
+                else if (appState === 'VIEW') {
+                    // Hold steady, paper locked to camera view
                     scene.attach(targetBP);
                     targetBP.quaternion.copy(camera.quaternion);
-                    joint6_gripper.attach(targetBP);
+                    joint5_wristRoll.attach(targetBP);
                 } 
                 else if (appState === 'RETURN') {
-                    // Rover faces table again
+                    // Rover faces desk again
                     targetRoverRot = Math.atan2(bpOriginalPos.x - roverGroup.position.x, bpOriginalPos.z - roverGroup.position.z);
                     
-                    // Arm down
-                    tShoulder = Math.PI / 2.5; tElbow = -Math.PI / 4; tWrist = -Math.PI / 2;
+                    // Arm dives back down
+                    tShoulder = Math.PI / 2.3; tElbow = -Math.PI / 6; tWristP = -Math.PI / 2.2;
 
-                    // Force blueprint back to laying flat
+                    // Force blueprint back to laying flat rotation
                     scene.attach(targetBP);
                     targetBP.quaternion.slerp(bpOriginalQuat, 0.1);
-                    joint6_gripper.attach(targetBP);
+                    joint5_wristRoll.attach(targetBP);
 
                     if (stateTimer > 2.0) {
                         appState = 'RELEASE'; stateTimer = 0;
                     }
                 } 
                 else if (appState === 'RELEASE') {
+                    tClaw = 0.5; // Open claws
                     scene.attach(targetBP);
                     targetBP.position.copy(bpOriginalPos);
                     targetBP.quaternion.copy(bpOriginalQuat);
                     
-                    tShoulder = Math.PI/4; tElbow = Math.PI/3; tWrist = Math.PI/4;
+                    tShoulder = Math.PI/4; tElbow = Math.PI/2.5; tWristP = Math.PI/4;
                     if(stateTimer > 1.0) {
-                        document.body.style.overflow = 'auto'; // Unlock
+                        document.body.style.overflow = 'auto'; // Unlock scroll
                         appState = 'SCROLL';
                     }
                 }
             }
 
-            // --- APPLY PHYSICS & SMOOTHING ---
+            // Apply Smooth Kinematics & Driving Physics
             const dist = roverGroup.position.distanceTo(targetRoverPos);
             if(dist > 0.1) {
                 roverGroup.position.lerp(targetRoverPos, 0.08);
-                totalSpeed += dist * 0.1;
-                wheels.forEach(w => w.rotation.x += dist * 0.1);
+                wheels.forEach(w => w.rotation.x += dist * 0.1); // Spin wheels
             }
 
             const rotSpeed = 0.08;
             roverGroup.rotation.y = lerpAngle(roverGroup.rotation.y, targetRoverRot, rotSpeed);
-            
             joint1_yaw.rotation.y = lerpAngle(joint1_yaw.rotation.y, tYaw, rotSpeed);
             joint2_shoulder.rotation.x = lerpAngle(joint2_shoulder.rotation.x, tShoulder, rotSpeed);
             joint3_elbow.rotation.x = lerpAngle(joint3_elbow.rotation.x, tElbow, rotSpeed);
-            joint4_wrist.rotation.x = lerpAngle(joint4_wrist.rotation.x, tWrist, rotSpeed);
-
-            // Audio Modulation
-            totalSpeed += Math.abs(tShoulder - joint2_shoulder.rotation.x) + Math.abs(tElbow - joint3_elbow.rotation.x);
-            updateServoSound(totalSpeed);
-
-            // Camera Updates
-            camera.position.lerp(currentCamPos, 0.1);
+            joint4_wristPitch.rotation.x = lerpAngle(joint4_wristPitch.rotation.x, tWristP, rotSpeed);
+            joint5_wristRoll.rotation.z = lerpAngle(joint5_wristRoll.rotation.z, tWristR, rotSpeed);
             
-            // Camera smoothly looks at target
+            clawL.rotation.y = lerpAngle(clawL.rotation.y, Math.PI/2 - tClaw, rotSpeed);
+            clawR.rotation.y = lerpAngle(clawR.rotation.y, -Math.PI/2 + tClaw, rotSpeed);
+
+            // Smooth Camera follow
+            camera.position.lerp(currentCamPos, 0.08);
             const targetQuat = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(camera.position, currentCamLook, new THREE.Vector3(0,1,0)));
-            camera.quaternion.slerp(targetQuat, 0.1);
+            camera.quaternion.slerp(targetQuat, 0.08);
 
             renderer.render(scene, camera);
         }
@@ -626,14 +645,3 @@
     </script>
 </body>
 </html>
-```
-
-### 🛠️ What Changed:
-1. **The Environment:** The background is a clean beige. The table is a procedural wooden texture. The lighting is balanced and creates soft professional shadows.
-2. **The Physics & IK:** The arm now has the exact colors of your reference (Red links, Grey base/grippers, Black servos, Blue micro-servo). When it grabs the blueprint, it holds the edge and lifts it. 
-3. **The Presentation:** The text is painted directly onto the blueprint (A4 proportion, blue background, white text). When picked up, the rover turns, holds the blueprint flat to the camera, and a clean "CLICK ANYWHERE TO PUT DOWN" hint appears.
-4. **The Scale:** The desk is smaller. The components (Arduino, MPU, L298N, drill) are massive, spread out evenly, and resting flat on the wood. 
-
-Run this in Live Server. This is the one. 
-
-Now, close the tab and do your Math practice.
