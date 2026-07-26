@@ -3,633 +3,428 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Abhay Siripudi | Mechanical Engineer</title>
+    <title>Abhay Siripudi | Mechanical Portfolio</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Inter:wght@300;500;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@300;500;800&display=swap" rel="stylesheet">
 
     <style>
-        /* Professional Light Theme */
-        body { margin: 0; overflow-x: hidden; background-color: #E8E0D5; font-family: 'Inter', sans-serif; scrollbar-width: none; -ms-overflow-style: none; }
-        body::-webkit-scrollbar { display: none; }
+        body { margin: 0; overflow-x: hidden; background-color: #1a1614; font-family: 'Inter', sans-serif; height: 300vh; }
         
-        #three-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; pointer-events: none; }
-        #scroll-container { position: absolute; top: 0; left: 0; width: 100%; height: 500vh; z-index: 10; }
+        #webgl-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
         
-        .ui-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20; display: flex; flex-direction: column; justify-content: center; padding: 10%; opacity: 0; transition: opacity 0.5s ease-out; }
-        .ui-layer.active { opacity: 1; }
+        .ui-layer { position: fixed; z-index: 20; pointer-events: none; }
+        
+        #cursor { position: fixed; width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.5); border-radius: 50%; pointer-events: none; z-index: 50; transform: translate(-50%, -50%); transition: width 0.2s, height 0.2s, background-color 0.2s; backdrop-filter: invert(1); }
+        #cursor.hover { width: 30px; height: 30px; background-color: rgba(255,255,255,0.2); border-color: #fff; }
 
-        /* Subtle Hint Overlay */
-        #interaction-hint { position: fixed; bottom: 10%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 12px 24px; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 14px; z-index: 50; opacity: 0; pointer-events: none; transition: opacity 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-        #interaction-hint.visible { opacity: 1; }
+        /* The Help Screen UI */
+        #help-screen { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9); width: 400px; background: rgba(20, 20, 20, 0.85); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 30px; color: white; z-index: 30; opacity: 0; pointer-events: none; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+        #help-screen.active { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
 
-        #cursor-hint { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 12px; height: 12px; background: rgba(0,0,0,0.2); border: 2px solid #000; border-radius: 50%; z-index: 30; pointer-events: none; transition: all 0.2s; }
-        #cursor-hint.active { transform: translate(-50%, -50%) scale(2.5); background: rgba(37, 99, 235, 0.5); border-color: #2563eb; }
+        /* Back Button for zooming out of blueprints */
+        #back-btn { position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%) translateY(20px); padding: 12px 24px; background: white; color: black; border-radius: 30px; font-weight: 600; font-size: 14px; cursor: pointer; z-index: 30; opacity: 0; pointer-events: none; transition: all 0.3s; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: none; }
+        #back-btn.active { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
+        #back-btn:hover { background: #e0e0e0; transform: translateX(-50%) scale(1.05); }
+
+        #hint { position: fixed; top: 40px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.6); font-family: 'JetBrains Mono'; font-size: 12px; pointer-events: none; z-index: 20; letter-spacing: 2px; text-transform: uppercase; }
     </style>
 </head>
 <body>
 
-    <canvas id="three-canvas"></canvas>
-    <div id="scroll-container"></div>
-    <div id="cursor-hint"></div>
-    <div id="interaction-hint">CLICK ANYWHERE TO PLACE ON DESK</div>
+    <div id="cursor"></div>
+    <div id="webgl-container"></div>
+    
+    <div id="hint">SCROLL TO EXPLORE WORKBENCH</div>
 
-    <div class="ui-layer active" id="ui-0">
-        <div class="max-w-3xl">
-            <h1 class="text-7xl font-extrabold tracking-tighter text-slate-900 mb-4 drop-shadow-sm">
-                Abhay Siripudi.
-            </h1>
-            <p class="text-2xl text-slate-700 font-medium font-mono border-l-4 border-blue-600 pl-4">
-                Mechanical Engineer.<br>Hardware. Kinematics. Control.
-            </p>
-            <p class="mt-8 text-sm font-bold text-slate-500 uppercase tracking-widest">Scroll to explore the workbench</p>
+    <button id="back-btn">Return to Desk</button>
+
+    <div id="help-screen">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-bold">System Status</h2>
+            <button id="close-help" class="text-gray-400 hover:text-white">&times;</button>
+        </div>
+        <div class="font-mono text-sm text-gray-300 space-y-4">
+            <p>> OPERATOR: Abhay Siripudi</p>
+            <p>> ROLE: Mechanical Engineer</p>
+            <p>> STATUS: Ready for prototyping.</p>
+            <hr class="border-gray-700">
+            <p>Click on the blueprints on the desk to examine CAD and kinematics files.</p>
+            <p>Scroll down to navigate the workspace.</p>
         </div>
     </div>
 
-    <div class="ui-layer" id="ui-3" style="align-items: center; text-align: center;">
-        <h2 class="text-6xl font-bold text-slate-900 mb-4 drop-shadow-sm">End of Line.</h2>
-        <p class="text-xl text-slate-600 font-mono font-bold">> SYSTEM STANDBY</p>
-    </div>
-
     <script>
-        // --- THREE.JS SETUP ---
-        const canvas = document.getElementById('three-canvas');
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xF0EAD6); // Bright beige/wood environment
-        scene.fog = new THREE.FogExp2(0xF0EAD6, 0.0015);
+        // --- CUSTOM CURSOR ---
+        const cursor = document.getElementById('cursor');
+        let mouseX = window.innerWidth / 2, mouseY = window.innerHeight / 2;
+        window.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX; mouseY = e.clientY;
+            cursor.style.left = mouseX + 'px';
+            cursor.style.top = mouseY + 'px';
+        });
 
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
-        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+        // --- STREAMING_CHUNK:Initializing Three.js Engine & Premium Lighting ---
+        const container = document.getElementById('webgl-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1614); // Very dark warm background
+        scene.fog = new THREE.FogExp2(0x1a1614, 0.005);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        
+        // Premium Hollywood-style color grading & shadow rendering
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
 
-        // Realistic Studio Lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        // Soft Studio Lighting Setup
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
         scene.add(ambientLight);
         
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(150, 300, 150);
-        dirLight.castShadow = true;
-        dirLight.shadow.mapSize.width = 2048;
-        dirLight.shadow.mapSize.height = 2048;
-        dirLight.shadow.camera.left = -400;
-        dirLight.shadow.camera.right = 400;
-        dirLight.shadow.camera.top = 400;
-        dirLight.shadow.camera.bottom = -400;
-        dirLight.shadow.bias = -0.0005;
-        scene.add(dirLight);
+        const mainLight = new THREE.DirectionalLight(0xfff0dd, 2.5); // Warm key light
+        mainLight.position.set(50, 100, 50);
+        mainLight.castShadow = true;
+        mainLight.shadow.mapSize.width = 2048;
+        mainLight.shadow.mapSize.height = 2048;
+        mainLight.shadow.bias = -0.0001;
+        scene.add(mainLight);
 
-        const fillLight = new THREE.DirectionalLight(0xe0eaff, 0.3);
-        fillLight.position.set(-150, 200, -150);
+        const fillLight = new THREE.DirectionalLight(0xaaccff, 1.0); // Cool fill light
+        fillLight.position.set(-50, 50, -50);
         scene.add(fillLight);
 
 
-        // --- PROCEDURAL WOODEN DESK & ENGRAVING ---
-        function createWoodTexture() {
-            const ctxCanvas = document.createElement('canvas');
-            ctxCanvas.width = 2048; ctxCanvas.height = 2048;
-            const ctx = ctxCanvas.getContext('2d');
+        // --- STREAMING_CHUNK:Creating Dark Walnut Desk with Real Engraving ---
+        function createEngravedWoodMaterial() {
+            // 1. Wood Color Texture
+            const colorCanvas = document.createElement('canvas');
+            colorCanvas.width = 1024; colorCanvas.height = 1024;
+            const ctxColor = colorCanvas.getContext('2d');
+            ctxColor.fillStyle = '#2b1b11'; // Dark Walnut base
+            ctxColor.fillRect(0, 0, 1024, 1024);
             
-            // Base Wood Color (Oak/Birch)
-            ctx.fillStyle = '#C19A6B'; 
-            ctx.fillRect(0, 0, 2048, 2048);
-            
-            // Fine Procedural Grain
-            ctx.fillStyle = 'rgba(101, 67, 33, 0.08)';
-            for(let i=0; i<2000; i++) {
-                ctx.beginPath();
-                let x = Math.random() * 2048;
-                let y = Math.random() * 2048;
-                let w = Math.random() * 400 + 100;
-                let h = Math.random() * 3 + 1;
-                ctx.ellipse(x, y, w, h, Math.random() * 0.05, 0, Math.PI * 2);
-                ctx.fill();
+            // Subtle wood grain
+            ctxColor.fillStyle = 'rgba(20, 10, 5, 0.1)';
+            for(let i=0; i<1000; i++) {
+                ctxColor.fillRect(Math.random()*1024, Math.random()*1024, Math.random()*200, Math.random()*2);
             }
-            const tex = new THREE.CanvasTexture(ctxCanvas);
-            tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(4, 4);
-            return tex;
+            const colorMap = new THREE.CanvasTexture(colorCanvas);
+            colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
+            colorMap.repeat.set(4, 4);
+
+            // 2. Bump Map for Engraving (Tricks lighting to create depth)
+            const bumpCanvas = document.createElement('canvas');
+            bumpCanvas.width = 2048; bumpCanvas.height = 2048;
+            const ctxBump = bumpCanvas.getContext('2d');
+            ctxBump.fillStyle = '#888888'; // Neutral bump background
+            ctxBump.fillRect(0, 0, 2048, 2048);
+            
+            // Draw the text in black (black = pushed inwards mathematically)
+            ctxBump.fillStyle = '#000000';
+            ctxBump.textAlign = 'center';
+            ctxBump.textBaseline = 'middle';
+            ctxBump.font = '900 120px "Inter"';
+            ctxBump.fillText('ABHAY SIRIPUDI', 1024, 950);
+            ctxBump.font = '500 40px "JetBrains Mono"';
+            ctxBump.fillText('MECHANICAL ENGINEER', 1024, 1050);
+
+            const bumpMap = new THREE.CanvasTexture(bumpCanvas);
+            
+            return new THREE.MeshPhysicalMaterial({
+                map: colorMap,
+                bumpMap: bumpMap,
+                bumpScale: 1.5, // How deep the carving looks
+                roughness: 0.6,
+                clearcoat: 0.1, // Slight polish on the table
+            });
         }
 
-        const deskMat = new THREE.MeshStandardMaterial({ map: createWoodTexture(), roughness: 0.8, metalness: 0.1 });
-        const desk = new THREE.Mesh(new THREE.PlaneGeometry(1200, 1200), deskMat);
+        const desk = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), createEngravedWoodMaterial());
         desk.rotation.x = -Math.PI / 2;
         desk.receiveShadow = true;
         scene.add(desk);
 
-        // Actual 3D Engraved Plaque
-        function createEngraving() {
-            const group = new THREE.Group();
-            
-            // Metal Plaque
-            const plaqueGeo = new THREE.BoxGeometry(180, 4, 50);
-            const plaqueMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.4, metalness: 0.8 });
-            const plaque = new THREE.Mesh(plaqueGeo, plaqueMat);
-            plaque.position.y = 2;
-            plaque.castShadow = true;
-            plaque.receiveShadow = true;
-            group.add(plaque);
 
-            // Generate Canvas text to use as a bump/color map for realism
-            const ctxCanvas = document.createElement('canvas');
-            ctxCanvas.width = 1024; ctxCanvas.height = 256;
-            const ctx = ctxCanvas.getContext('2d');
-            ctx.fillStyle = '#111111'; ctx.fillRect(0, 0, 1024, 256);
-            ctx.font = '900 85px "Inter"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillStyle = '#DDDDDD';
-            ctx.fillText('ABHAY SIRIPUDI', 512, 128);
-            
-            const tex = new THREE.CanvasTexture(ctxCanvas);
-            const textPlane = new THREE.Mesh(new THREE.PlaneGeometry(175, 45), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5, metalness: 0.9 }));
-            textPlane.rotation.x = -Math.PI / 2;
-            textPlane.position.y = 4.1;
-            group.add(textPlane);
-
-            return group;
-        }
-        const engraving = createEngraving();
-        engraving.position.set(0, 0, -40);
-        scene.add(engraving);
-
-
-        // --- BLUEPRINTS (TEXT DIRECTLY ON CANVAS) ---
+        // --- STREAMING_CHUNK:Generating High-Quality Blueprints ---
         const blueprints = [];
-        function createDetailedBlueprint(title, desc) {
-            const ctxCanvas = document.createElement('canvas');
-            ctxCanvas.width = 1024; ctxCanvas.height = 1024; // Square aspect for easier reading when held
-            const ctx = ctxCanvas.getContext('2d');
+        
+        function createBlueprintMaterial(title, subtitle) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024; canvas.height = 1024;
+            const ctx = canvas.getContext('2d');
             
-            // Blueprint Blue Background
-            ctx.fillStyle = '#0f172a'; ctx.fillRect(0, 0, 1024, 1024); // Dark slate
+            // Classic dark blue blueprint paper
+            ctx.fillStyle = '#0a192f'; ctx.fillRect(0, 0, 1024, 1024);
             
-            // Grid
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'; ctx.lineWidth = 2;
-            for(let i=0; i<=1024; i+=32) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 1024); ctx.stroke(); }
-            for(let i=0; i<=1024; i+=32) { ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(1024, i); ctx.stroke(); }
-            
-            // Border & Header
-            ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 8; ctx.strokeRect(40, 40, 944, 944);
-            ctx.fillStyle = '#3b82f6'; ctx.fillRect(40, 40, 944, 100);
-            
-            // Title
-            ctx.fillStyle = '#ffffff'; 
-            ctx.font = 'bold 60px "JetBrains Mono"'; ctx.textAlign = 'left';
-            ctx.fillText(title, 80, 110);
-            
-            // Description Body
-            ctx.fillStyle = '#e2e8f0';
-            ctx.font = '32px "Inter"';
-            const words = desc.split(' '); let line = ''; let y = 220;
-            for(let n = 0; n < words.length; n++) {
-                const testLine = line + words[n] + ' ';
-                const metrics = ctx.measureText(testLine);
-                if (metrics.width > 860 && n > 0) {
-                    ctx.fillText(line, 80, y);
-                    line = words[n] + ' ';
-                    y += 50;
-                } else { line = testLine; }
+            // Grid lines
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'; ctx.lineWidth = 2;
+            for(let i=0; i<=1024; i+=32) {
+                ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,1024); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(1024,i); ctx.stroke();
             }
-            ctx.fillText(line, 80, y);
+            
+            // White border
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 6; ctx.strokeRect(30, 30, 964, 964);
+            
+            // Text
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 70px "Inter"'; ctx.textAlign = 'left';
+            ctx.fillText(title, 60, 120);
+            
+            ctx.fillStyle = '#64ffda';
+            ctx.font = '40px "JetBrains Mono"';
+            ctx.fillText(subtitle, 60, 180);
 
-            // Mock CAD Drawing details
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)'; ctx.lineWidth = 4;
-            ctx.beginPath(); ctx.arc(512, 700, 150, 0, Math.PI*2); ctx.stroke();
-            ctx.beginPath(); ctx.arc(512, 700, 100, 0, Math.PI*2); ctx.stroke();
-            ctx.setLineDash([10, 15]);
-            ctx.beginPath(); ctx.moveTo(200, 700); ctx.lineTo(824, 700); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(512, 400); ctx.lineTo(512, 950); ctx.stroke();
+            // Generic CAD sketch lines
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.arc(512, 600, 200, 0, Math.PI*2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(512, 600, 150, 0, Math.PI*2); ctx.stroke();
+            ctx.setLineDash([15, 15]);
+            ctx.beginPath(); ctx.moveTo(100, 600); ctx.lineTo(924, 600); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(512, 250); ctx.lineTo(512, 950); ctx.stroke();
 
-            return new THREE.CanvasTexture(ctxCanvas);
+            const tex = new THREE.CanvasTexture(canvas);
+            return new THREE.MeshPhysicalMaterial({ map: tex, roughness: 0.9, clearcoat: 0.0 });
         }
 
-        const bpGeo = new THREE.PlaneGeometry(50, 50);
+        const bpGeo = new THREE.PlaneGeometry(35, 35);
         
-        // BP1: Placed South-East (+X, +Z)
-        const bp1 = new THREE.Mesh(bpGeo, new THREE.MeshStandardMaterial({ map: createDetailedBlueprint('UAV DIFF. MECH', 'Mechanical kinematic design for fixed-wing stabilization. Replaces dual servos with a single robust differential mechanical linkage. Designed for high-torque applications. Patent pending kinematics.'), side: THREE.DoubleSide }));
-        bp1.rotation.x = -Math.PI / 2; bp1.rotation.z = Math.PI / 8;
-        bp1.position.set(120, 0.2, 100);
+        // BP1: Placed fairly close
+        const bp1 = new THREE.Mesh(bpGeo, createBlueprintMaterial('UAV DIFF. MECH', 'KINEMATIC ANALYSIS'));
+        bp1.rotation.x = -Math.PI / 2; bp1.rotation.z = Math.PI / 12;
+        bp1.position.set(40, 0.1, 30);
         bp1.receiveShadow = true; bp1.castShadow = true;
         scene.add(bp1); blueprints.push(bp1);
 
-        // BP2: Placed South-West (-X, +Z)
-        const bp2 = new THREE.Mesh(bpGeo, new THREE.MeshStandardMaterial({ map: createDetailedBlueprint('SENSOR FUSION & IK', 'C++ Implementation of Kalman filter integrating MPU6050 accelerometer data. Also features custom Inverse Kinematics math for 6-DOF robotic manipulation.'), side: THREE.DoubleSide }));
-        bp2.rotation.x = -Math.PI / 2; bp2.rotation.z = -Math.PI / 12;
-        bp2.position.set(-140, 0.2, 280);
+        // BP2: Placed further down
+        const bp2 = new THREE.Mesh(bpGeo, createBlueprintMaterial('SENSOR FUSION', 'C++ / FIRMWARE'));
+        bp2.rotation.x = -Math.PI / 2; bp2.rotation.z = -Math.PI / 8;
+        bp2.position.set(-30, 0.1, 90);
         bp2.receiveShadow = true; bp2.castShadow = true;
         scene.add(bp2); blueprints.push(bp2);
 
 
-        // --- PROCEDURAL HIGH-POLY HARDWARE COMPONENTS ---
-        
-        const matPlastic = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.7, metalness: 0.1 });
-        const matMetal = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.3, metalness: 0.9 });
-        const matGold = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.2, metalness: 1.0 });
-        const matPCBBlue = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.9, metalness: 0.1 });
-        const matPCBRed = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.9, metalness: 0.1 });
+        // --- STREAMING_CHUNK:Creating the Sleek "edh.dev" Style Helper Bot ---
+        const botGroup = new THREE.Group();
+        scene.add(botGroup);
 
-        // 1. High-Poly Arduino Uno
-        function createArduino() {
-            const group = new THREE.Group();
-            
-            // PCB Shape (Extruded for realism)
-            const boardShape = new THREE.Shape();
-            boardShape.moveTo(0, 0); boardShape.lineTo(68, 0); boardShape.lineTo(68, 53);
-            boardShape.lineTo(65, 53); boardShape.lineTo(62, 50); boardShape.lineTo(0, 50); boardShape.lineTo(0, 0);
-            const boardGeo = new THREE.ExtrudeGeometry(boardShape, { depth: 1.5, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.2, bevelThickness: 0.2 });
-            const pcb = new THREE.Mesh(boardGeo, matPCBBlue);
-            pcb.rotation.x = Math.PI / 2;
-            pcb.position.set(-34, 1.5, -25);
-            pcb.castShadow = true; pcb.receiveShadow = true;
-            group.add(pcb);
+        // High poly, smooth white plastic body
+        const botBodyGeo = new THREE.CapsuleGeometry(2.5, 4, 32, 64);
+        const botPlasticMat = new THREE.MeshPhysicalMaterial({ 
+            color: 0xffffff, 
+            roughness: 0.1, 
+            metalness: 0.1,
+            clearcoat: 1.0, // This gives it that Apple/edh.dev premium gloss
+            clearcoatRoughness: 0.1
+        });
+        const botBody = new THREE.Mesh(botBodyGeo, botPlasticMat);
+        botBody.castShadow = true;
+        botGroup.add(botBody);
 
-            // ATmega Chip
-            const chip = new THREE.Mesh(new THREE.BoxGeometry(35, 3, 9), matPlastic);
-            chip.position.set(10, 3, 5); chip.castShadow = true; group.add(chip);
-            // Pins for chip
-            for(let i=0; i<14; i++) {
-                const pin1 = new THREE.Mesh(new THREE.BoxGeometry(1, 4, 1), matMetal);
-                pin1.position.set(-6 + i*2.5, 1.5, 9.5); group.add(pin1);
-                const pin2 = new THREE.Mesh(new THREE.BoxGeometry(1, 4, 1), matMetal);
-                pin2.position.set(-6 + i*2.5, 1.5, 0.5); group.add(pin2);
-            }
+        // Dark glass visor
+        const visorGeo = new THREE.CylinderGeometry(2.6, 2.6, 2.5, 32, 1, false, -Math.PI/3, Math.PI/1.5);
+        const visorMat = new THREE.MeshPhysicalMaterial({
+            color: 0x050505,
+            roughness: 0.0,
+            transmission: 0.5, // Makes it look like actual glass
+            transparent: true
+        });
+        const visor = new THREE.Mesh(visorGeo, visorMat);
+        visor.position.y = 1;
+        visor.rotation.y = Math.PI / 6;
+        botGroup.add(visor);
 
-            // USB & Power
-            const usb = new THREE.Mesh(new THREE.BoxGeometry(12, 11, 16), matMetal);
-            usb.position.set(-28, 6.5, -15); usb.castShadow = true; group.add(usb);
-            const pwr = new THREE.Mesh(new THREE.BoxGeometry(9, 11, 13), matPlastic);
-            pwr.position.set(-28, 6.5, 15); pwr.castShadow = true; group.add(pwr);
-
-            // Headers
-            const header1 = new THREE.Mesh(new THREE.BoxGeometry(40, 6, 2.5), matPlastic);
-            header1.position.set(10, 4.5, -23); group.add(header1);
-            
-            group.scale.set(0.6, 0.6, 0.6); // Scale down to fit desk better
-            return group;
-        }
-        const arduino = createArduino();
-        arduino.position.set(-80, 0, 80);
-        arduino.rotation.y = Math.PI / 6;
-        scene.add(arduino);
-
-        // 2. High-Poly Power Drill
-        function createDrill() {
-            const group = new THREE.Group();
-            
-            // Battery Pack
-            const battery = new THREE.Mesh(new THREE.BoxGeometry(18, 8, 12), matPlastic);
-            battery.position.set(0, 4, 0); battery.castShadow = true; group.add(battery);
-
-            // Handle (Extruded profile)
-            const handleShape = new THREE.Shape();
-            handleShape.moveTo(0,0); handleShape.lineTo(6,0); handleShape.lineTo(10,25); handleShape.lineTo(2,25); handleShape.lineTo(0,0);
-            const handle = new THREE.Mesh(new THREE.ExtrudeGeometry(handleShape, { depth: 8, bevelEnabled: true, bevelSize: 1, bevelThickness: 1 }), matPlastic);
-            handle.position.set(-4, 8, -4); handle.castShadow = true; group.add(handle);
-
-            // Motor Housing (Yellow)
-            const motorMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.5 });
-            const motor = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 28, 32), motorMat);
-            motor.rotation.z = Math.PI / 2; motor.position.set(4, 30, 0); motor.castShadow = true; group.add(motor);
-
-            // Chuck (Lathe Geometry for true circular steps)
-            const chuckPoints = [];
-            for ( let i = 0; i < 10; i ++ ) chuckPoints.push( new THREE.Vector2( Math.sin( i * 0.2 ) * 3 + 2, ( i - 5 ) * 1.5 ) );
-            const chuck = new THREE.Mesh(new THREE.LatheGeometry(chuckPoints, 32), matMetal);
-            chuck.rotation.z = Math.PI / 2; chuck.position.set(24, 30, 0); chuck.castShadow = true; group.add(chuck);
-
-            return group;
-        }
-        const drill = createDrill();
-        drill.rotation.x = Math.PI / 2; // Lay flat on table
-        drill.rotation.z = -Math.PI / 4;
-        drill.position.set(160, 4, 40); // Top right of desk
-        scene.add(drill);
+        // Glowing eye inside visor
+        const eyeGeo = new THREE.SphereGeometry(0.5, 16, 16);
+        const eyeMat = new THREE.MeshBasicMaterial({ color: 0x64ffda }); // Glowing cyan
+        const eye = new THREE.Mesh(eyeGeo, eyeMat);
+        eye.position.set(0, 1, 2.2);
+        botGroup.add(eye);
 
 
-        // --- HIGH-POLY 6-DOF ROBOTIC ARM & ROVER ---
-        const roverGroup = new THREE.Group();
-        scene.add(roverGroup);
-
-        const redMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.3, metalness: 0.1 });
-        const greyMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.5 });
-        const servoMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
-
-        // High-Poly Rover Base
-        const chassisShape = new THREE.Shape();
-        chassisShape.moveTo(-15, -20); chassisShape.lineTo(15, -20); chassisShape.lineTo(20, 0); chassisShape.lineTo(15, 20); chassisShape.lineTo(-15, 20); chassisShape.lineTo(-15, -20);
-        const chassis = new THREE.Mesh(new THREE.ExtrudeGeometry(chassisShape, { depth: 6, bevelEnabled: true, bevelSize: 1 }), greyMat);
-        chassis.rotation.x = Math.PI / 2; chassis.position.set(0, 8, 0); chassis.castShadow = true; roverGroup.add(chassis);
-        
-        // Detailed Wheels
-        const wheels = [];
-        for(let i=0; i<4; i++) {
-            const wGroup = new THREE.Group();
-            const wTire = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 4, 32), matPlastic);
-            wTire.rotation.z = Math.PI / 2; wTire.castShadow = true; wGroup.add(wTire);
-            const wHub = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 4.2, 16), matMetal);
-            wHub.rotation.z = Math.PI / 2; wGroup.add(wHub);
-            wGroup.position.set(i<2?17:-17, 5, i%2===0?15:-15);
-            roverGroup.add(wGroup); wheels.push(wGroup);
-        }
-
-        // --- Arm Joints ---
-        // Base Yaw
-        const joint1_yaw = new THREE.Group(); joint1_yaw.position.set(0, 10, 0); roverGroup.add(joint1_yaw);
-        const baseCyl = new THREE.Mesh(new THREE.CylinderGeometry(8, 10, 6, 64), servoMat);
-        baseCyl.position.y = 3; baseCyl.castShadow = true; joint1_yaw.add(baseCyl);
-
-        // Shoulder Pitch
-        const joint2_shoulder = new THREE.Group(); joint2_shoulder.position.set(0, 8, 0); joint1_yaw.add(joint2_shoulder);
-        const shoulderBracket = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 10, 32), redMat);
-        shoulderBracket.rotation.z = Math.PI/2; shoulderBracket.castShadow = true; joint2_shoulder.add(shoulderBracket);
-        const bicep = new THREE.Mesh(new THREE.BoxGeometry(8, 28, 6), redMat);
-        bicep.position.set(0, 14, 0); bicep.castShadow = true; joint2_shoulder.add(bicep);
-
-        // Elbow Pitch
-        const joint3_elbow = new THREE.Group(); joint3_elbow.position.set(0, 28, 0); joint2_shoulder.add(joint3_elbow);
-        const elbowBracket = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 8, 32), redMat);
-        elbowBracket.rotation.z = Math.PI/2; elbowBracket.castShadow = true; joint3_elbow.add(elbowBracket);
-        const forearm = new THREE.Mesh(new THREE.BoxGeometry(6, 22, 5), redMat);
-        forearm.position.set(0, 11, 0); forearm.castShadow = true; joint3_elbow.add(forearm);
-
-        // Wrist Pitch
-        const joint4_wristPitch = new THREE.Group(); joint4_wristPitch.position.set(0, 22, 0); joint3_elbow.add(joint4_wristPitch);
-        const wristCyl = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 7, 32), servoMat);
-        wristCyl.rotation.z = Math.PI/2; wristCyl.castShadow = true; joint4_wristPitch.add(wristCyl);
-
-        // Wrist Roll & Gripper Base
-        const joint5_wristRoll = new THREE.Group(); joint5_wristRoll.position.set(0, 4, 0); joint4_wristPitch.add(joint5_wristRoll);
-        const gripperBase = new THREE.Mesh(new THREE.BoxGeometry(8, 4, 12), greyMat);
-        gripperBase.position.y = 2; gripperBase.castShadow = true; joint5_wristRoll.add(gripperBase);
-
-        // Claws
-        const clawShape = new THREE.Shape();
-        clawShape.moveTo(0,0); clawShape.lineTo(4,0); clawShape.lineTo(4,12); clawShape.lineTo(1,16); clawShape.lineTo(0,16); clawShape.lineTo(0,0);
-        const clawGeo = new THREE.ExtrudeGeometry(clawShape, { depth: 2, bevelEnabled: true, bevelSize: 0.5 });
-        
-        const clawL = new THREE.Mesh(clawGeo, greyMat);
-        clawL.position.set(3, 4, -1); clawL.rotation.y = Math.PI/2; clawL.castShadow = true; joint5_wristRoll.add(clawL);
-        
-        const clawR = new THREE.Mesh(clawGeo, greyMat);
-        clawR.position.set(-3, 4, 1); clawR.rotation.y = -Math.PI/2; clawR.castShadow = true; joint5_wristRoll.add(clawR);
-
-        // Default Pose
-        joint2_shoulder.rotation.x = Math.PI / 4;
-        joint3_elbow.rotation.x = Math.PI / 2.5;
-        joint4_wristPitch.rotation.x = Math.PI / 4;
-        roverGroup.position.set(0, 0, 20); 
-
-
-        // --- INTERACTION & CINEMATIC STATE MACHINE ---
-        let appState = 'SCROLL'; // SCROLL, DRIVE, GRAB, LIFT, VIEW, RETURN, RELEASE
-        let targetBP = null;
-        let bpOriginalPos = new THREE.Vector3();
-        let bpOriginalQuat = new THREE.Quaternion();
-        let stateTimer = 0;
-
+        // --- STREAMING_CHUNK:Raycasting & Interaction Logic ---
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
-        const cursorHint = document.getElementById('cursor-hint');
-        const interactHint = document.getElementById('interaction-hint');
+        
+        let currentState = 'SCROLLING'; // SCROLLING, ZOOMED, HELP
+        let targetCamPos = new THREE.Vector3();
+        let targetCamLook = new THREE.Vector3();
+        let activeBlueprint = null;
+
+        const backBtn = document.getElementById('back-btn');
+        const helpScreen = document.getElementById('help-screen');
+        const closeHelpBtn = document.getElementById('close-help');
 
         window.addEventListener('mousemove', (e) => {
             mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-            cursorHint.style.left = e.clientX + 'px';
-            cursorHint.style.top = e.clientY + 'px';
 
-            if(appState === 'SCROLL') {
+            if (currentState === 'SCROLLING') {
                 raycaster.setFromCamera(mouse, camera);
-                const intersects = raycaster.intersectObjects(blueprints);
-                if(intersects.length > 0) {
-                    cursorHint.classList.add('active');
-                    document.body.style.cursor = 'pointer';
+                // Check intersect with blueprints OR the bot
+                const intersects = raycaster.intersectObjects([...blueprints, botBody, visor]);
+                
+                if (intersects.length > 0) {
+                    cursor.classList.add('hover');
                 } else {
-                    cursorHint.classList.remove('active');
-                    document.body.style.cursor = 'default';
+                    cursor.classList.remove('hover');
                 }
             }
         });
 
         window.addEventListener('click', () => {
-            if(appState === 'SCROLL') {
-                raycaster.setFromCamera(mouse, camera);
-                const intersects = raycaster.intersectObjects(blueprints);
+            if (currentState !== 'SCROLLING') return;
+
+            raycaster.setFromCamera(mouse, camera);
+            
+            // 1. Check Bot Click
+            const botIntersects = raycaster.intersectObjects([botBody, visor]);
+            if (botIntersects.length > 0) {
+                currentState = 'HELP';
+                helpScreen.classList.add('active');
+                cursor.classList.remove('hover');
+                return;
+            }
+
+            // 2. Check Blueprint Click
+            const bpIntersects = raycaster.intersectObjects(blueprints);
+            if (bpIntersects.length > 0) {
+                activeBlueprint = bpIntersects[0].object;
+                currentState = 'ZOOMED';
+                cursor.classList.remove('hover');
                 
-                if(intersects.length > 0) {
-                    targetBP = intersects[0].object;
-                    targetBP.getWorldPosition(bpOriginalPos);
-                    targetBP.getWorldQuaternion(bpOriginalQuat);
-                    
-                    document.body.style.overflow = 'hidden'; // Lock scroll
-                    cursorHint.classList.remove('active');
-                    appState = 'DRIVE';
-                    stateTimer = 0;
-                }
-            } 
-            else if (appState === 'VIEW') {
-                interactHint.classList.remove('visible');
-                appState = 'RETURN';
-                stateTimer = 0;
+                // GSAP Cinematic Zoom in to the blueprint
+                // Calculate position right above the blueprint
+                const bpPos = activeBlueprint.position;
+                
+                gsap.to(camera.position, {
+                    x: bpPos.x,
+                    y: bpPos.y + 25, // Height above paper
+                    z: bpPos.z + 5,
+                    duration: 1.5,
+                    ease: "power3.inOut"
+                });
+
+                // Animate an invisible target object that the camera looks at
+                gsap.to(cameraLookTarget, {
+                    x: bpPos.x,
+                    y: bpPos.y,
+                    z: bpPos.z,
+                    duration: 1.5,
+                    ease: "power3.inOut",
+                    onComplete: () => {
+                        backBtn.classList.add('active');
+                    }
+                });
             }
         });
 
-        // --- CAMERA & SCROLL WAYPOINTS ---
-        // South-East, then South-West panning
-        const waypoints = [
-            { cam: new THREE.Vector3(0, 120, 80), look: new THREE.Vector3(0,0,-20), rover: new THREE.Vector3(0, 0, 20) }, // Intro
-            { cam: new THREE.Vector3(120, 100, 200), look: new THREE.Vector3(120,0,100), rover: new THREE.Vector3(120, 0, 150) }, // SE BP1
-            { cam: new THREE.Vector3(-140, 100, 380), look: new THREE.Vector3(-140,0,280), rover: new THREE.Vector3(-140, 0, 330) }, // SW BP2
-            { cam: new THREE.Vector3(0, 60, 500), look: new THREE.Vector3(0,0,380), rover: new THREE.Vector3(0, 0, 380) } // Outro Wave
+        // HTML Button Events
+        backBtn.addEventListener('click', () => {
+            backBtn.classList.remove('active');
+            currentState = 'SCROLLING';
+            // Force a scroll event to snap camera back to correct scroll position
+            window.dispatchEvent(new Event('scroll')); 
+        });
+
+        closeHelpBtn.addEventListener('click', () => {
+            helpScreen.classList.remove('active');
+            currentState = 'SCROLLING';
+        });
+
+
+        // --- STREAMING_CHUNK:Scroll Animation Logic ---
+        let scrollY = 0;
+        let maxScroll = 1;
+        
+        // Define camera path points
+        const camPath = [
+            { pos: new THREE.Vector3(0, 40, 20), look: new THREE.Vector3(0, 0, 0) }, // Intro viewing engraving
+            { pos: new THREE.Vector3(40, 30, 50), look: new THREE.Vector3(40, 0, 30) }, // Look at BP1
+            { pos: new THREE.Vector3(-30, 30, 110), look: new THREE.Vector3(-30, 0, 90) }, // Look at BP2
+            { pos: new THREE.Vector3(0, 50, 150), look: new THREE.Vector3(0, 0, 100) } // Outro
         ];
 
-        let scrollProgress = 0;
+        let cameraLookTarget = new THREE.Vector3(0,0,0);
+
         window.addEventListener('scroll', () => {
-            if(appState === 'SCROLL') {
-                const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-                scrollProgress = Math.max(0, Math.min(1, window.scrollY / maxScroll));
+            maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+            scrollY = window.scrollY;
+
+            if (currentState === 'SCROLLING') {
+                const progress = Math.min(Math.max(scrollY / maxScroll, 0), 1);
                 
-                document.querySelectorAll('.ui-layer').forEach(el => el.classList.remove('active'));
-                if(scrollProgress < 0.1) document.getElementById('ui-0').classList.add('active');
-                if(scrollProgress > 0.9) document.getElementById('ui-3').classList.add('active');
+                // Interpolate between path points
+                const segmentProgress = progress * (camPath.length - 1);
+                const index = Math.floor(segmentProgress);
+                const t = segmentProgress - index;
+
+                if (index < camPath.length - 1) {
+                    const p1 = camPath[index];
+                    const p2 = camPath[index + 1];
+                    
+                    // Use GSAP to smoothly update target positions to avoid jitter
+                    gsap.to(targetCamPos, {
+                        x: p1.pos.x + (p2.pos.x - p1.pos.x) * t,
+                        y: p1.pos.y + (p2.pos.y - p1.pos.y) * t,
+                        z: p1.pos.z + (p2.pos.z - p1.pos.z) * t,
+                        duration: 0.5, ease: "power1.out"
+                    });
+                    
+                    gsap.to(targetCamLook, {
+                        x: p1.look.x + (p2.look.x - p1.look.x) * t,
+                        y: p1.look.y + (p2.look.y - p1.look.y) * t,
+                        z: p1.look.z + (p2.look.z - p1.look.z) * t,
+                        duration: 0.5, ease: "power1.out"
+                    });
+                }
             }
         });
 
-        function getScrollState(p) {
-            const scaledP = p * 3; 
-            const idx = Math.floor(scaledP);
-            const t = scaledP - idx;
-            if (idx >= 3) return waypoints[3];
-            const smoothT = t * t * (3 - 2 * t);
-            return {
-                cam: new THREE.Vector3().copy(waypoints[idx].cam).lerp(waypoints[idx+1].cam, smoothT),
-                look: new THREE.Vector3().copy(waypoints[idx].look).lerp(waypoints[idx+1].look, smoothT),
-                rover: new THREE.Vector3().copy(waypoints[idx].rover).lerp(waypoints[idx+1].rover, smoothT)
-            };
-        }
+        // Trigger initial scroll calculation
+        window.dispatchEvent(new Event('scroll'));
+        camera.position.copy(targetCamPos);
+        cameraLookTarget.copy(targetCamLook);
 
 
-        // --- ANIMATION LOOP & KINEMATICS ---
+        // --- STREAMING_CHUNK:Main Animation Loop ---
         const clock = new THREE.Clock();
-        const currentCamPos = waypoints[0].cam.clone();
-        const currentCamLook = waypoints[0].look.clone();
-        
-        let targetRoverPos = new THREE.Vector3();
-        let targetRoverRot = 0;
-        let tYaw = 0, tShoulder = Math.PI/4, tElbow = Math.PI/2.5, tWristP = Math.PI/4, tWristR = 0, tClaw = 0;
-
-        function lerpAngle(a, b, t) {
-            let diff = b - a;
-            while (diff < -Math.PI) diff += Math.PI * 2;
-            while (diff > Math.PI) diff -= Math.PI * 2;
-            return a + diff * t;
-        }
 
         function animate() {
             requestAnimationFrame(animate);
-            const delta = Math.min(clock.getDelta(), 0.1);
             const time = clock.getElapsedTime();
 
-            if (appState === 'SCROLL') {
-                const state = getScrollState(scrollProgress);
-                currentCamPos.lerp(state.cam, 0.05);
-                currentCamLook.lerp(state.look, 0.05);
-                targetRoverPos.copy(state.rover);
-                
-                const dir = new THREE.Vector3().subVectors(targetRoverPos, roverGroup.position);
-                if(dir.lengthSq() > 1) targetRoverRot = Math.atan2(dir.x, dir.z);
-                else targetRoverRot = roverGroup.rotation.y;
-
-                tYaw = 0;
-                tShoulder = Math.PI/4 + Math.sin(time)*0.05;
-                tElbow = Math.PI/2.5 + Math.cos(time)*0.05;
-                tWristP = Math.PI/4;
-                tClaw = 0.5; // Open
-
-                // Final Wave Goodbye
-                if(scrollProgress > 0.95) {
-                    const dirToCam = new THREE.Vector3().subVectors(camera.position, roverGroup.position).normalize();
-                    targetRoverRot = Math.atan2(dirToCam.x, dirToCam.z);
-                    tShoulder = -Math.PI/6; 
-                    tElbow = Math.PI/8;
-                    tWristP = -Math.PI/4;
-                    tWristR = Math.sin(time * 10) * 0.5; // Wave Roll
-                } else {
-                    tWristR = 0;
-                }
-
-            } else {
-                stateTimer += delta;
-                
-                // Position rover exactly 35 units away from blueprint to grab corner
-                const grabPos = new THREE.Vector3(bpOriginalPos.x, 0, bpOriginalPos.z + 35);
-                targetRoverPos.copy(grabPos);
-                targetRoverRot = Math.atan2(bpOriginalPos.x - roverGroup.position.x, bpOriginalPos.z - roverGroup.position.z);
-
-                if (appState === 'DRIVE') {
-                    tShoulder = Math.PI/4; tElbow = Math.PI/2.5; tClaw = 0.5;
-                    if (roverGroup.position.distanceTo(grabPos) < 1.0 && stateTimer > 1.0) {
-                        appState = 'GRAB'; stateTimer = 0;
-                    }
-                } 
-                else if (appState === 'GRAB') {
-                    // Arm dives to table level
-                    tShoulder = Math.PI / 2.3; 
-                    tElbow = -Math.PI / 6;
-                    tWristP = -Math.PI / 2.2;
-                    
-                    if (stateTimer > 1.5 && stateTimer < 2.0) {
-                        tClaw = 0; // Snap claws shut
-                    }
-
-                    if (stateTimer > 2.0) {
-                        joint5_wristRoll.attach(targetBP); // Physically lock paper to wrist
-                        // Align paper relative to gripper so it holds the edge naturally
-                        targetBP.position.set(0, 10, -10); 
-                        targetBP.rotation.set(-Math.PI/2, 0, 0);
-                        appState = 'LIFT'; stateTimer = 0;
-                    }
-                } 
-                else if (appState === 'LIFT') {
-                    // Turn rover to face camera
-                    const dirToCam = new THREE.Vector3().subVectors(camera.position, roverGroup.position).normalize();
-                    targetRoverRot = Math.atan2(dirToCam.x, dirToCam.z);
-                    
-                    // Lift arm extremely high
-                    tShoulder = -Math.PI / 8;
-                    tElbow = Math.PI / 1.5;
-                    tWristP = -Math.PI / 3;
-
-                    // Mathematics: Force the blueprint to perfectly align with camera lens
-                    scene.attach(targetBP);
-                    targetBP.quaternion.slerp(camera.quaternion, 0.1);
-                    joint5_wristRoll.attach(targetBP);
-
-                    if (stateTimer > 2.5) {
-                        appState = 'VIEW';
-                        interactHint.classList.add('visible');
-                    }
-                } 
-                else if (appState === 'VIEW') {
-                    // Hold steady, paper locked to camera view
-                    scene.attach(targetBP);
-                    targetBP.quaternion.copy(camera.quaternion);
-                    joint5_wristRoll.attach(targetBP);
-                } 
-                else if (appState === 'RETURN') {
-                    // Rover faces desk again
-                    targetRoverRot = Math.atan2(bpOriginalPos.x - roverGroup.position.x, bpOriginalPos.z - roverGroup.position.z);
-                    
-                    // Arm dives back down
-                    tShoulder = Math.PI / 2.3; tElbow = -Math.PI / 6; tWristP = -Math.PI / 2.2;
-
-                    // Force blueprint back to laying flat rotation
-                    scene.attach(targetBP);
-                    targetBP.quaternion.slerp(bpOriginalQuat, 0.1);
-                    joint5_wristRoll.attach(targetBP);
-
-                    if (stateTimer > 2.0) {
-                        appState = 'RELEASE'; stateTimer = 0;
-                    }
-                } 
-                else if (appState === 'RELEASE') {
-                    tClaw = 0.5; // Open claws
-                    scene.attach(targetBP);
-                    targetBP.position.copy(bpOriginalPos);
-                    targetBP.quaternion.copy(bpOriginalQuat);
-                    
-                    tShoulder = Math.PI/4; tElbow = Math.PI/2.5; tWristP = Math.PI/4;
-                    if(stateTimer > 1.0) {
-                        document.body.style.overflow = 'auto'; // Unlock scroll
-                        appState = 'SCROLL';
-                    }
-                }
+            // Smoothly move camera during scroll mode
+            if (currentState === 'SCROLLING') {
+                camera.position.lerp(targetCamPos, 0.05);
+                cameraLookTarget.lerp(targetCamLook, 0.05);
             }
-
-            // Apply Smooth Kinematics & Driving Physics
-            const dist = roverGroup.position.distanceTo(targetRoverPos);
-            if(dist > 0.1) {
-                roverGroup.position.lerp(targetRoverPos, 0.08);
-                wheels.forEach(w => w.rotation.x += dist * 0.1); // Spin wheels
-            }
-
-            const rotSpeed = 0.08;
-            roverGroup.rotation.y = lerpAngle(roverGroup.rotation.y, targetRoverRot, rotSpeed);
-            joint1_yaw.rotation.y = lerpAngle(joint1_yaw.rotation.y, tYaw, rotSpeed);
-            joint2_shoulder.rotation.x = lerpAngle(joint2_shoulder.rotation.x, tShoulder, rotSpeed);
-            joint3_elbow.rotation.x = lerpAngle(joint3_elbow.rotation.x, tElbow, rotSpeed);
-            joint4_wristPitch.rotation.x = lerpAngle(joint4_wristPitch.rotation.x, tWristP, rotSpeed);
-            joint5_wristRoll.rotation.z = lerpAngle(joint5_wristRoll.rotation.z, tWristR, rotSpeed);
             
-            clawL.rotation.y = lerpAngle(clawL.rotation.y, Math.PI/2 - tClaw, rotSpeed);
-            clawR.rotation.y = lerpAngle(clawR.rotation.y, -Math.PI/2 + tClaw, rotSpeed);
+            // Always look at the target (updates for both scroll and zoom)
+            camera.lookAt(cameraLookTarget);
 
-            // Smooth Camera follow
-            camera.position.lerp(currentCamPos, 0.08);
-            const targetQuat = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(camera.position, currentCamLook, new THREE.Vector3(0,1,0)));
-            camera.quaternion.slerp(targetQuat, 0.08);
+            // Bot Hover Animation (Sine wave)
+            botGroup.position.y = Math.sin(time * 2) * 1.5 + 8;
+            
+            // Bot Follow Logic: Make it glide near the camera
+            // Offset slightly to the right and forward of the camera
+            const botTargetX = camera.position.x + 15;
+            const botTargetZ = camera.position.z - 20;
+            
+            botGroup.position.x += (botTargetX - botGroup.position.x) * 0.02;
+            botGroup.position.z += (botTargetZ - botGroup.position.z) * 0.02;
+            
+            // Make bot look at the camera look target
+            botGroup.lookAt(cameraLookTarget.x, botGroup.position.y, cameraLookTarget.z);
 
             renderer.render(scene, camera);
         }
