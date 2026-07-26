@@ -416,7 +416,7 @@
         const outroCtx = outroCanvas.getContext('2d');
         outroCtx.fillStyle = '#111'; outroCtx.fillRect(0, 0, 1024, 256);
         outroCtx.fillStyle = '#fff';
-        outroCtx.font = '900 80px "Inter"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        outroCtx.font = '900 80px "Inter"'; outroCtx.textAlign = 'center'; outroCtx.textBaseline = 'middle';
         outroCtx.fillText('THANK YOU', 512, 128);
         
         const outroTex = new THREE.CanvasTexture(outroCanvas);
