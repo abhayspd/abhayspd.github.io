@@ -1,20 +1,391 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>My Engineering Portfolio</title>
-    <!-- This one line brings in the Tailwind Framework -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Portfolio | Mechatronics</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<!-- bg-slate-900 makes it dark, text-white makes text white -->
-<body class="bg-slate-900 text-white h-screen flex flex-col justify-center items-center font-mono">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     
-    <h1 class="text-5xl font-bold text-blue-400 mb-4">Hello</h1>
-    <p class="text-xl text-gray-400">This website is underprogress.</p>
-    
-    <!-- A cool glowing button -->
-    <button class="mt-8 px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg shadow-[0_0_15px_rgba(37,99,235,0.5)] transition-all">
-        ...
-    </button>
+    <style>
+        body {
+            margin: 0;
+            overflow-x: hidden;
+            background-color: #111;
+            font-family: 'Courier New', Courier, monospace;
+        }
 
+        /* 3D Canvas fixed in the background */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+        }
+
+        /* UI Overlay */
+        .ui-layer {
+            position: relative;
+            z-index: 10;
+            pointer-events: none; /* Let scroll pass through to canvas */
+        }
+
+        .scroll-section {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 0 10vw;
+        }
+
+        /* Project Cards */
+        .project-card {
+            pointer-events: auto; /* Re-enable clicks for cards */
+            background: rgba(20, 25, 30, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid #4a5568;
+            color: #e2e8f0;
+            padding: 2rem;
+            width: 350px;
+            height: 200px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        /* The Grabber Arm Container */
+        #robotic-arm {
+            position: fixed;
+            top: -500px; /* Hidden offscreen initially */
+            left: 0;
+            width: 80px;
+            height: 400px;
+            z-index: 50;
+            pointer-events: none;
+            transform-origin: top center;
+        }
+
+        /* SVG styling for the arm */
+        .arm-cable {
+            fill: none;
+            stroke: #cbd5e1;
+            stroke-width: 4;
+            stroke-dasharray: 8 4;
+        }
+        .arm-claw {
+            fill: #f59e0b;
+            stroke: #b45309;
+            stroke-width: 2;
+        }
+
+        /* Hide details initially */
+        .project-details {
+            opacity: 0;
+            display: none;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="bg-canvas"></canvas>
+
+    <div id="robotic-arm">
+        <svg viewBox="0 0 100 400" width="100%" height="100%">
+            <!-- Arm Extension/Cable -->
+            <line x1="50" y1="0" x2="50" y2="350" class="arm-cable" />
+            <!-- The Claw -->
+            <path d="M 30 350 L 70 350 L 80 380 L 70 390 L 50 370 L 30 390 L 20 380 Z" class="arm-claw" />
+            <!-- Claw joint -->
+            <circle cx="50" cy="350" r="8" fill="#475569" />
+        </svg>
+    </div>
+
+    <div class="ui-layer">
+        
+        <!-- Section 1: Intro -->
+        <div class="scroll-section justify-center">
+            <div class="text-center pointer-events-auto bg-black/50 p-8 rounded-xl border border-gray-700 backdrop-blur-md">
+                <h1 class="text-6xl font-bold text-yellow-500 mb-2 tracking-tighter uppercase">MECHATRONICS</h1>
+                <p class="text-xl text-gray-300 mb-4">Initializing workspace...</p>
+                <p class="text-sm text-gray-500 animate-pulse">Scroll down to inspect hardware.</p>
+            </div>
+        </div>
+
+        <!-- Section 2: Project 1 -->
+        <div class="scroll-section justify-start">
+            <div class="project-card" id="project-1">
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-2xl font-bold text-white">UAV Differential</h2>
+                    <span class="text-xs bg-yellow-600 text-black px-2 py-1 rounded font-bold">PATENT PENDING</span>
+                </div>
+                <p class="text-gray-400">Click to expand mechanism details.</p>
+                
+                <div class="project-details">
+                    <hr class="border-gray-600 my-2">
+                    <p class="mb-2">> Purely mechanical differential gearbox replacing electronic IMU roll-stabilization.</p>
+                    <p class="mb-2">> Flexible wing root actuates trailing-edge ailerons instantly.</p>
+                    <p>> Status: CAD modeled, transitioning to 3D printing phase.</p>
+                    <button class="mt-4 bg-yellow-600 hover:bg-yellow-500 text-black font-bold py-1 px-4 rounded transition">View CAD / Repo</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 3: Project 2 -->
+        <div class="scroll-section justify-end">
+            <div class="project-card" id="project-2">
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-2xl font-bold text-white">ESP32 FSM Filter</h2>
+                    <span class="text-xs bg-blue-600 text-white px-2 py-1 rounded font-bold">FIRMWARE</span>
+                </div>
+                <p class="text-gray-400">Click to expand code architecture.</p>
+                
+                <div class="project-details">
+                    <hr class="border-gray-600 my-2">
+                    <p class="mb-2">> C++ Finite State Machine built for ESP32 microcontrollers.</p>
+                    <p class="mb-2">> Implements noise-filtering for raw analog sensor data.</p>
+                    <p>> Status: Tested on breadboard, integrating with actuators.</p>
+                    <button class="mt-4 bg-blue-600 hover:bg-blue-500 text-white font-bold py-1 px-4 rounded transition">View C++ Code</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- 1. Three.js Setup ---
+        const canvas = document.getElementById('bg-canvas');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x111111, 0.02);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        // --- 2. Lighting ---
+        const ambientLight = new THREE.AmbientLight(0x404040, 1.5);
+        scene.add(ambientLight);
+
+        const deskLight = new THREE.SpotLight(0xfff0dd, 2);
+        deskLight.position.set(0, 20, 0);
+        deskLight.angle = Math.PI / 4;
+        deskLight.penumbra = 0.5;
+        deskLight.castShadow = true;
+        scene.add(deskLight);
+
+        // --- 3. Build the "Desk" ---
+        const deskGeo = new THREE.PlaneGeometry(100, 100);
+        const deskMat = new THREE.MeshStandardMaterial({ 
+            color: 0x2c1e16, // Dark wood base
+            roughness: 0.8,
+            metalness: 0.2
+        });
+        const desk = new THREE.Mesh(deskGeo, deskMat);
+        desk.rotation.x = -Math.PI / 2;
+        desk.receiveShadow = true;
+        scene.add(desk);
+
+        // --- 4. The "Engraved" Name Plate ---
+        // We create a canvas to draw text, then use it as a bump/color map to simulate engraving.
+        const textCanvas = document.createElement('canvas');
+        textCanvas.width = 1024;
+        textCanvas.height = 256;
+        const ctx = textCanvas.getContext('2d');
+        ctx.fillStyle = '#2c1e16'; // Match desk
+        ctx.fillRect(0, 0, 1024, 256);
+        ctx.font = 'bold 80px Courier New';
+        ctx.fillStyle = '#1a120c'; // Darker for engraving
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('ENGINEERING WORKSPACE', 512, 128);
+
+        const textTexture = new THREE.CanvasTexture(textCanvas);
+        const engraveGeo = new THREE.PlaneGeometry(30, 7.5);
+        const engraveMat = new THREE.MeshStandardMaterial({
+            map: textTexture,
+            bumpMap: textTexture,
+            bumpScale: 0.5,
+            roughness: 0.9
+        });
+        const engravePlate = new THREE.Mesh(engraveGeo, engraveMat);
+        engravePlate.rotation.x = -Math.PI / 2;
+        engravePlate.position.set(0, 0.01, -5); // Slightly above desk
+        scene.add(engravePlate);
+
+        // --- 5. Generic Microcontroller Model ---
+        const mcuGroup = new THREE.Group();
+        
+        // Main Board
+        const boardGeo = new THREE.BoxGeometry(4, 0.2, 6);
+        const boardMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.6 });
+        const board = new THREE.Mesh(boardGeo, boardMat);
+        board.castShadow = true;
+        mcuGroup.add(board);
+
+        // Silver Processing Chip
+        const chipGeo = new THREE.BoxGeometry(1.5, 0.3, 1.5);
+        const chipMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8, roughness: 0.2 });
+        const chip = new THREE.Mesh(chipGeo, chipMat);
+        chip.position.set(0, 0.1, 0);
+        mcuGroup.add(chip);
+
+        // Gold Pins
+        const pinGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.5, 8);
+        const pinMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 1, roughness: 0.3 });
+        for(let i=-2.5; i<=2.5; i+=0.5) {
+            // Left side pins
+            let pinL = new THREE.Mesh(pinGeo, pinMat);
+            pinL.position.set(-1.8, 0, i);
+            mcuGroup.add(pinL);
+            // Right side pins
+            let pinR = new THREE.Mesh(pinGeo, pinMat);
+            pinR.position.set(1.8, 0, i);
+            mcuGroup.add(pinR);
+        }
+
+        mcuGroup.position.set(8, 0.1, 10);
+        mcuGroup.rotation.y = Math.PI / 6;
+        scene.add(mcuGroup);
+
+        // --- 6. Initial Camera Setup ---
+        camera.position.set(0, 15, 10);
+        camera.lookAt(0, 0, 0);
+
+        // --- 7. Scroll Animation Logic ---
+        let scrollY = window.scrollY;
+        window.addEventListener('scroll', () => {
+            scrollY = window.scrollY;
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Calculate scroll progress (0 to 1)
+            const maxScroll = document.body.scrollHeight - window.innerHeight;
+            const scrollProgress = maxScroll > 0 ? scrollY / maxScroll : 0;
+
+            // Pan camera across the desk based on scroll
+            // Start at (0, 15, 10), move to (10, 12, 15)
+            const targetX = scrollProgress * 15;
+            const targetZ = 10 + (scrollProgress * 10);
+            
+            // Smooth camera interpolation
+            camera.position.x += (targetX - camera.position.x) * 0.05;
+            camera.position.z += (targetZ - camera.position.z) * 0.05;
+            
+            // Make MCU rotate slowly like you are examining it
+            mcuGroup.rotation.y += 0.005;
+
+            camera.lookAt(camera.position.x, 0, camera.position.z - 10);
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // --- 8. The Grab & Stretch Animation Logic ---
+        const cards = document.querySelectorAll('.project-card');
+        const arm = document.getElementById('robotic-arm');
+        let activeCard = null;
+
+        cards.forEach(card => {
+            card.addEventListener('click', (e) => {
+                
+                // If clicking an already expanded card, close it
+                if (activeCard === card) {
+                    closeCard(card);
+                    return;
+                }
+
+                // If another card is open, close it first
+                if (activeCard) {
+                    closeCard(activeCard);
+                }
+
+                activeCard = card;
+                const rect = card.getBoundingClientRect();
+                const details = card.querySelector('.project-details');
+                
+                // 1. Move Arm above the target card's top-right corner
+                gsap.to(arm, {
+                    x: rect.right - 60, // Position arm X near right edge
+                    y: rect.top - 380, // Position arm Y just above the card
+                    duration: 0.5,
+                    ease: "power2.out",
+                    onComplete: () => {
+                        // 2. Arm drops down to "grab" the card
+                        gsap.to(arm, {
+                            y: rect.top - 330, // Drop down 50px
+                            duration: 0.2,
+                            ease: "bounce.out",
+                            onComplete: () => {
+                                
+                                // 3. Arm and Card pull down together (Stretching effect)
+                                gsap.to(card, {
+                                    height: 400, // Stretch height
+                                    duration: 0.8,
+                                    ease: "elastic.out(1, 0.5)"
+                                });
+                                
+                                // Reveal details text
+                                details.style.display = "block";
+                                gsap.to(details, {
+                                    opacity: 1,
+                                    duration: 0.5,
+                                    delay: 0.3
+                                });
+
+                                // Arm pulls away after expanding
+                                gsap.to(arm, {
+                                    y: -500, // Retreat offscreen
+                                    duration: 0.5,
+                                    delay: 0.5,
+                                    ease: "power2.in"
+                                });
+                            }
+                        });
+                    }
+                });
+            });
+        });
+
+        function closeCard(card) {
+            const details = card.querySelector('.project-details');
+            
+            // Hide details
+            gsap.to(details, {
+                opacity: 0,
+                duration: 0.2,
+                onComplete: () => {
+                    details.style.display = "none";
+                }
+            });
+
+            // Shrink card back
+            gsap.to(card, {
+                height: 200,
+                duration: 0.4,
+                ease: "power2.inOut"
+            });
+
+            activeCard = null;
+        }
+
+    </script>
 </body>
 </html>
