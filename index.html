@@ -6,12 +6,12 @@
     <title>Abhay Siripudi | Mechanical Portfolio</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.146.0/build/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@300;500;800&display=swap" rel="stylesheet">
 
     <style>
-        body { margin: 0; overflow-x: hidden; background-color: #110b08; font-family: 'Inter', sans-serif; height: 300vh; }
+        body { margin: 0; overflow-x: hidden; background-color: #e8dcc7; font-family: 'Inter', sans-serif; height: 300vh; }
         
         #webgl-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
         
@@ -67,8 +67,8 @@
         // --- STREAMING_CHUNK:Initializing Three.js Engine & Premium Lighting ---
         const container = document.getElementById('webgl-container');
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x110b08); 
-        scene.fog = new THREE.FogExp2(0x110b08, 0.003);
+        scene.background = new THREE.Color(0xe8dcc7); 
+        scene.fog = new THREE.FogExp2(0xe8dcc7, 0.003);
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
         
@@ -99,27 +99,27 @@
         function createEngravedWoodMaterial() {
             const size = 2048; // High res
             
-            // 1. Wood Color Texture (Darker Walnut)
+            // 1. Wood Color Texture (Lighter Wood)
             const colorCanvas = document.createElement('canvas');
             colorCanvas.width = size; colorCanvas.height = size;
             const ctxColor = colorCanvas.getContext('2d');
-            ctxColor.fillStyle = '#301b0d'; // Dark rich brown
+            ctxColor.fillStyle = '#dcbda0'; // Light beige wood
             ctxColor.fillRect(0, 0, size, size);
             
             // Subtle wood grain
-            ctxColor.fillStyle = 'rgba(10, 5, 2, 0.2)';
+            ctxColor.fillStyle = 'rgba(150, 100, 50, 0.15)';
             for(let i=0; i<2000; i++) {
                 ctxColor.fillRect(Math.random()*size, Math.random()*size, Math.random()*300, Math.random()*3);
             }
             
-            // Burn the text visually into the color map so it's super visible
-            ctxColor.fillStyle = '#140a05'; // Almost black burn color
+            // Burn the text visually into the color map
+            ctxColor.fillStyle = '#8a5a3a'; // Softer engraved color
             ctxColor.textAlign = 'center';
             ctxColor.textBaseline = 'middle';
-            ctxColor.font = '900 140px "Inter"';
-            ctxColor.fillText('ABHAY SIRIPUDI', size/2, size/2 - 40);
-            ctxColor.font = '700 50px "JetBrains Mono"';
-            ctxColor.fillText('MECHANICAL ENGINEER', size/2, size/2 + 60);
+            ctxColor.font = '900 85px "Inter"'; // Scaled down to fit frame
+            ctxColor.fillText('ABHAY SIRIPUDI', size/2, size/2 - 30);
+            ctxColor.font = '700 35px "JetBrains Mono"'; // Scaled down
+            ctxColor.fillText('MECHANICAL ENGINEER', size/2, size/2 + 40);
 
             const colorMap = new THREE.CanvasTexture(colorCanvas);
 
@@ -133,18 +133,18 @@
             ctxBump.fillStyle = '#000000';
             ctxBump.textAlign = 'center';
             ctxBump.textBaseline = 'middle';
-            ctxBump.font = '900 140px "Inter"';
-            ctxBump.fillText('ABHAY SIRIPUDI', size/2, size/2 - 40);
-            ctxBump.font = '700 50px "JetBrains Mono"';
-            ctxBump.fillText('MECHANICAL ENGINEER', size/2, size/2 + 60);
+            ctxBump.font = '900 85px "Inter"'; // Scaled down
+            ctxBump.fillText('ABHAY SIRIPUDI', size/2, size/2 - 30);
+            ctxBump.font = '700 35px "JetBrains Mono"'; // Scaled down
+            ctxBump.fillText('MECHANICAL ENGINEER', size/2, size/2 + 40);
 
             const bumpMap = new THREE.CanvasTexture(bumpCanvas);
             
             return new THREE.MeshStandardMaterial({
                 map: colorMap,
                 bumpMap: bumpMap,
-                bumpScale: 2.0, 
-                roughness: 0.8,
+                bumpScale: 1.5, 
+                roughness: 0.7,
             });
         }
 
@@ -270,7 +270,7 @@
         botGroup.position.set(15, 10, -20); // Hovering near origin
 
         const botPlasticMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.1 });
-        const botBody = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 4, 32), botPlasticMat);
+        const botBody = new THREE.Mesh(new THREE.CapsuleGeometry(2.5, 3, 16, 32), botPlasticMat);
         botBody.castShadow = true;
         botGroup.add(botBody);
 
